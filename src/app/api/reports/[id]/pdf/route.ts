@@ -97,7 +97,8 @@ export async function GET(
     headers.set("Content-Type", "application/pdf")
     headers.set("Content-Disposition", `attachment; filename="${report.pdf_filename}"`)
     
-    return new NextResponse(fileBuffer, {
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers,
     })

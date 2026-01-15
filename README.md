@@ -868,8 +868,12 @@ npm install
 # Export các biến môi trường
 export GCP_PROJECT_ID="autoland-monitoring"
 export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"  # Từ OAuth2 credentials
-export GOOGLE_CLIENT_SECRET="GOCSPX-your-client-secret"  # Từ OAuth2 credentials
-export GOOGLE_REDIRECT_URI="https://YOUR_DOMAIN/api/test/gmail/callback"  # Domain đã map ở Bước 12
+
+# Lấy secret từ Secret Manager để đảm bảo credentials khớp nhau
+export GOOGLE_CLIENT_SECRET=$(gcloud secrets versions access latest --secret=google-client-secret --project=$GCP_PROJECT_ID)
+
+# Có thể dùng localhost redirect URI cho Cloud Shell (manual flow)
+export GOOGLE_REDIRECT_URI="http://localhost:3000/oauth2callback"
 export PUBSUB_TOPIC="gmail-notifications"
 export MANUAL_FLOW=true  # Bật manual flow cho Cloud Shell
 
@@ -877,32 +881,74 @@ export MANUAL_FLOW=true  # Bật manual flow cho Cloud Shell
 node scripts/setup-gmail-watch.js
 ```
 
-**⚠️ QUAN TRỌNG:** `GOOGLE_REDIRECT_URI` phải khớp với redirect URI đã cấu hình trong OAuth2 Client (Bước 14)
+**⚠️ QUAN TRỌNG:** 
+- `GOOGLE_REDIRECT_URI` phải được thêm vào OAuth2 Client trong Google Cloud Console
+- Có thể dùng `http://localhost:3000/oauth2callback` cho Cloud Shell (manual flow)
+- `GOOGLE_CLIENT_SECRET` phải khớp với secret trong Secret Manager
 
 **Quy trình Manual Flow:**
 1. Script sẽ hiển thị URL authorization
 2. Copy URL và mở trong browser
 3. Đăng nhập và cấp quyền cho ứng dụng
-4. Sau khi authorize, browser sẽ redirect về production URL hoặc hiển thị authorization code
-5. Copy toàn bộ redirect URL (hoặc chỉ phần `code=...`) từ browser address bar
+4. Sau khi authorize, browser sẽ redirect về localhost (sẽ không load được - đây là bình thường)
+5. Copy toàn bộ redirect URL từ browser address bar (hoặc chỉ phần `code=...`)
 6. Paste vào terminal khi script hỏi
 7. Script sẽ tự động extract code và setup Gmail Watch
+8. **Script sẽ in ra REFRESH TOKEN** - copy và lưu lại
 
-**Lưu ý:**
-- Gmail Watch expires sau 7 ngày, cần renew định kỳ
-- Refresh token sẽ được lưu để có thể refresh access token khi cần
-- Xem phần "Setup Cloud Scheduler để tự động renew Watch" bên dưới
+**Output mẫu:**
+```
+✅ Authorization successful!
+Refresh token obtained. You can use this to refresh access tokens.
+
+🔑 REFRESH TOKEN (save this to Secret Manager):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1//0gxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**⚠️ PHÂN BIỆT REFRESH TOKEN vs AUTHORIZATION CODE:**
+
+| Token Type | Format | Mục đích |
+|------------|--------|----------|
+| **Authorization Code** | `4/0Axxxxxx...` | Dùng 1 lần để đổi lấy tokens |
+| **Refresh Token** | `1//0gxxxxxx...` | Lưu vào Secret Manager để refresh access token |
 
 **⚠️ QUAN TRỌNG: Sau khi chạy script, cập nhật refresh token vào Secret Manager:**
 
 ```bash
-# Copy refresh token từ output của script (bắt đầu bằng "1//0g...")
+# Copy refresh token từ output của script (BẮT ĐẦU BẰNG "1//")
 export REFRESH_TOKEN="1//0g..."  # Thay bằng refresh token thực tế
 export PROJECT_ID="autoland-monitoring"
 
 # Update secret (secret đã được tạo từ bước trước)
 echo -n "$REFRESH_TOKEN" | gcloud secrets versions add gmail-oauth-refresh-token \
   --data-file=- \
+  --project=$PROJECT_ID
+
+# Verify refresh token đã lưu đúng
+gcloud secrets versions access latest --secret=gmail-oauth-refresh-token --project=$PROJECT_ID
+# Output phải bắt đầu bằng "1//" - nếu bắt đầu bằng "4/0A" thì SAI!
+```
+
+**⚠️ Nếu Cloud Function báo lỗi `invalid_grant` sau khi update secret:**
+
+Cloud Function có thể cache secret values. Cần redeploy để force refresh:
+
+```bash
+# Redeploy Cloud Function để force refresh secrets
+cd cloud-functions/renew-gmail-watch
+
+gcloud functions deploy renew-gmail-watch \
+  --gen2 --runtime=nodejs20 --region=$REGION --source=. \
+  --entry-point=renewGmailWatch --trigger-http \
+  --service-account=$SA_EMAIL \
+  --set-env-vars="GCP_PROJECT_ID=$PROJECT_ID" \
+  --set-env-vars="PUBSUB_TOPIC=gmail-notifications" \
+  --set-env-vars="GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com" \
+  --set-secrets="GOOGLE_CLIENT_SECRET=google-client-secret:latest" \
+  --set-secrets="OAUTH_REFRESH_TOKEN=gmail-oauth-refresh-token:latest" \
+  --memory=256Mi --timeout=60s --allow-unauthenticated \
   --project=$PROJECT_ID
 ```
 

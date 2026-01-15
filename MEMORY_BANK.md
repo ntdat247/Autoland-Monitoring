@@ -1,6 +1,6 @@
 # Memory Bank - Autoland Monitoring Project
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-15 (Deployment Session)
 **Purpose:** Central repository for important project context, decisions, and changes
 
 ---
@@ -216,6 +216,55 @@ PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
 ---
 
 ## 🔄 Recent Changes
+
+### Production Deployment Session (2026-01-15)
+
+**Project:** `autoland-monitoring-test`
+**Region:** `asia-southeast1`
+
+**Deployed Components:**
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| Cloud Function `gmail-pubsub-processor` | ✅ | Processes Gmail notifications |
+| Cloud Function `renew-gmail-watch` | ✅ | Auto-renews Gmail Watch |
+| Cloud Scheduler `renew-gmail-watch-weekly` | ✅ | Runs every 6 days |
+| Pub/Sub Topic `gmail-notifications` | ✅ | Gmail push notifications |
+| Gmail Watch | ✅ | Personal Gmail account |
+| Cloud SQL `autoland-db` | ✅ | PostgreSQL 15 |
+| Document AI Processor | ✅ | US region, OCR type |
+| Cloud Run (Next.js) | 🔄 | Building... |
+
+**Key Learnings:**
+
+1. **Refresh Token vs Authorization Code:**
+   - Authorization Code: `4/0Axxxxxx...` (one-time use)
+   - Refresh Token: `1//0gxxxxxx...` (save to Secret Manager)
+
+2. **Cloud Function Secret Caching:**
+   - Cloud Functions cache secret values
+   - Need to redeploy after updating secrets to force refresh
+   - Error `invalid_grant` often means cached old secret
+
+3. **OAuth2 localhost redirect:**
+   - Can use `http://localhost:3000/oauth2callback` for Cloud Shell
+   - Manual flow: browser redirects to localhost (won't load), copy URL and paste
+
+4. **Script Fix:**
+   - Updated `setup-gmail-watch.js` to print refresh token
+   - Added clear visual output with `━━━` separators
+
+**Resource IDs:**
+
+| Resource | ID |
+|----------|-----|
+| Project | `autoland-monitoring-test` |
+| Document AI Processor | `projects/autoland-monitoring-test/locations/us/processors/ac5cded15d980c63` |
+| Service Account | `autoland-service@autoland-monitoring-test.iam.gserviceaccount.com` |
+| Cloud SQL Connection | `autoland-monitoring-test:asia-southeast1:autoland-db` |
+| Storage Bucket | `autoland-reports` |
+
+---
 
 ### Production Deployment Review (2026-01-15)
 
