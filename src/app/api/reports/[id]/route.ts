@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 
+// Force dynamic rendering - this route uses dynamic params and database
+export const dynamic = 'force-dynamic'
+
 interface RouteParams {
   params: {
     id: string

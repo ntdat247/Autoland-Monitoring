@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { parsePDFWithFallback, calculateCostSavings } from '@/lib/parsers/hybrid-pdf-parser'
 import path from 'path'
 
+// Force dynamic rendering - this route uses filesystem
+export const dynamic = 'force-dynamic'
+
 // Sample PDF files for testing
 const SAMPLE_PDFS = [
   'VJC_VN-A546_VJ442_X_PQC_20251230013957_AUTOLAND_REPORT_20251230042559.pdf',

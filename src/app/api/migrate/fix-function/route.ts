@@ -3,6 +3,9 @@ import { db } from "@/lib/db"
 import { readFileSync } from "fs"
 import { join } from "path"
 
+// Force dynamic rendering - this route uses database
+export const dynamic = 'force-dynamic'
+
 /**
  * Temporary API endpoint to fix calculate_autoland_to_go function
  * This should be removed after migration is complete

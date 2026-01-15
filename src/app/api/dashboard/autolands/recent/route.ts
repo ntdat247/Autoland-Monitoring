@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 
+// Force dynamic rendering - this route uses request.url and database
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
     // Get query params

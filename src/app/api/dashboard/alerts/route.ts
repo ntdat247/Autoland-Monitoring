@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 
+// Force dynamic rendering - this route uses database
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     // Fetch aircraft that need attention (overdue or due soon)

@@ -3,6 +3,9 @@ import { google } from "googleapis"
 import { Storage } from "@google-cloud/storage"
 import { DocumentProcessorServiceClient } from "@google-cloud/documentai"
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic'
+
 /**
  * Test endpoint để kiểm tra PDF download và extraction
  * GET /api/test/pdf?messageId=xxx&attachmentId=xxx

@@ -3,6 +3,9 @@ import { db } from "@/lib/db"
 import { readFileSync } from "fs"
 import { join } from "path"
 
+// Force dynamic rendering - this route uses database
+export const dynamic = 'force-dynamic'
+
 /**
  * Temporary API endpoint to change visibility_rvr column type
  * This should be removed after migration is complete

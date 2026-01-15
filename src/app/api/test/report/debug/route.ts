@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 
+// Force dynamic rendering - this route uses request.url and database
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to see what data was actually saved in database
  * GET /api/test/report/debug?id=38

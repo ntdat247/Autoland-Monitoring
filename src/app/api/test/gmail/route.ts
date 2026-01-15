@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { google } from "googleapis"
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic'
+
 /**
  * Test endpoint để kiểm tra Gmail API integration
  * GET /api/test/gmail

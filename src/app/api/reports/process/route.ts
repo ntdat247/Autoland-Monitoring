@@ -4,6 +4,9 @@ import { Storage } from "@google-cloud/storage"
 import { db } from "@/lib/db"
 import { parsePDFWithFallback } from "@/lib/parsers/hybrid-pdf-parser"
 
+// Force dynamic rendering - this route uses database and external APIs
+export const dynamic = 'force-dynamic'
+
 /**
  * Process Autoland Report PDF and save to database
  * POST /api/reports/process

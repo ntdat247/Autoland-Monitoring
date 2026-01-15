@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { Storage } from "@google-cloud/storage"
 
+// Force dynamic rendering - this route uses request.url and database
+export const dynamic = 'force-dynamic'
+
 /**
  * Cleanup old PDF files from Google Cloud Storage
  * Deletes PDF files older than 30 days to save storage costs

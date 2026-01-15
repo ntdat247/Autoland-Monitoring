@@ -4,6 +4,9 @@ import { DocumentProcessorServiceClient } from "@google-cloud/documentai"
 import { Storage } from "@google-cloud/storage"
 import { parseAutolandReport } from "@/lib/parsers/autoland-pdf-parser"
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint to see extracted text and parsed data
  * GET /api/test/pdf/debug?messageId=xxx&attachmentId=xxx

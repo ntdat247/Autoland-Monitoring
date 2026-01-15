@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { google } from "googleapis"
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic'
+
 /**
  * OAuth2 Token Exchange Endpoint
  * GET /api/test/gmail/token?code=xxx
