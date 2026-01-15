@@ -13,11 +13,12 @@ export function formatDate(date: string | Date | null | undefined, format: 'shor
   // Check if date is valid
   if (isNaN(d.getTime())) return 'N/A'
   
-  const options: Intl.DateTimeFormatOptions = {
+  const formatOptions: Record<string, Intl.DateTimeFormatOptions> = {
     short: { day: '2-digit', month: '2-digit', year: '2-digit' },
     long: { day: '2-digit', month: 'long', year: 'numeric' },
     full: { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' },
-  }[format]
+  }
+  const options = formatOptions[format]
 
   return d.toLocaleDateString('vi-VN', options)
 }

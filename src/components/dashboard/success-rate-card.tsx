@@ -49,11 +49,12 @@ export function SuccessRateCard() {
     )
   }
 
-  const bgColor = stats?.successRate 
-    ? (stats.successRate >= 95 ? "bg-success/10" : stats.successRate >= 90 ? "bg-warning/10" : "bg-gray-100")
+  const successRateNum = stats?.successRate ? parseFloat(stats.successRate) : 0
+  const bgColor = successRateNum > 0
+    ? (successRateNum >= 95 ? "bg-success/10" : successRateNum >= 90 ? "bg-warning/10" : "bg-gray-100")
     : "bg-gray-100"
-  const color = stats?.successRate ? "text-success" : "text-gray-900"
-  const badge = stats?.successRate >= 95 ? "Excellent" : stats?.successRate >= 90 ? "Good" : stats?.successRate >= 80 ? "Fair" : null
+  const color = successRateNum > 0 ? "text-success" : "text-gray-900"
+  const badge = successRateNum >= 95 ? "Excellent" : successRateNum >= 90 ? "Good" : successRateNum >= 80 ? "Fair" : null
 
   return (
     <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">

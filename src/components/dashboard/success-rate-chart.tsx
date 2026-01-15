@@ -34,13 +34,18 @@ interface SuccessRateChartProps {
 export function SuccessRateChart({ height = 300, showLegend = true }: SuccessRateChartProps) {
   const { stats, isLoading, refetch } = useDashboardData()
 
+  // Mock data for chart - TODO: Replace with actual API data when available
+  const mockLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const mockRates = [92, 94, 93, 95, 96, 94, 95, 97, 96, 98, 97, 98]
+  const mockTotals = [45, 52, 48, 55, 60, 58, 62, 65, 58, 70, 68, 72]
+
   // Prepare chart data
   const chartData = {
-    labels: stats?.history?.map((item: any) => item.date) || [],
+    labels: mockLabels,
     datasets: [
       {
         label: "Success Rate (%)",
-        data: stats?.history?.map((item: any) => item.rate) || [],
+        data: mockRates,
         borderColor: "#E31837", // VietJet Red
         backgroundColor: "rgba(227, 24, 55, 0.2)",
         borderWidth: 2,
@@ -49,7 +54,7 @@ export function SuccessRateChart({ height = 300, showLegend = true }: SuccessRat
       },
       {
         label: "Total Autolands",
-        data: stats?.history?.map((item: any) => item.total || 0) || [],
+        data: mockTotals,
         borderColor: "#3B82F6",
         backgroundColor: "rgba(59, 130, 246, 0.1)",
         borderWidth: 2,
@@ -63,7 +68,7 @@ export function SuccessRateChart({ height = 300, showLegend = true }: SuccessRat
     maintainAspectRatio: false,
     scales: {
       y: {
-        beginAt: 80,
+        min: 80,
         max: 100,
         ticks: {
           callback: function(value: any) {
@@ -74,8 +79,7 @@ export function SuccessRateChart({ height = 300, showLegend = true }: SuccessRat
       x: {
         ticks: {
           callback: function(value: any, index: number, ticks: any[]) {
-            const date = new Date(value)
-            return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "short" })
+            return mockLabels[index] || value
           },
         },
       },
@@ -90,22 +94,14 @@ export function SuccessRateChart({ height = 300, showLegend = true }: SuccessRat
         intersect: false,
         callbacks: {
           label: function(context: any) {
-            let label = context.dataset.label || ""
+            const label = context.dataset.label || ""
             if (context.parsed.y !== null) {
-              label += ": " + context.parsed.y + "%"
+              return `${label}: ${context.parsed.y}${context.datasetIndex === 0 ? '%' : ''}`
             }
             return label
           },
           title: function(tooltipItems: any[]) {
-            const item = tooltipItems[0]
-            const historyItem = stats?.history?.find((h: any) => h.date === item.label)
-            return `
-              <div class="text-sm font-medium text-gray-900">
-                <div class="font-bold text-vj-red">${historyItem?.rate || 0}%</div>
-                <div class="text-gray-600">Success Rate</div>
-                <div class="text-xs text-gray-500">${item.label}</div>
-              </div>
-            `
+            return tooltipItems[0]?.label || ''
           },
         },
       },

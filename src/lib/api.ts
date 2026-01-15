@@ -46,7 +46,7 @@ export function paginatedResponse(
   page: number,
   perPage: number,
   total: number,
-  additionalData?: Record<string, any> = {}
+  additionalData: Record<string, any> = {}
 ) {
   const totalPages = Math.ceil(total / perPage)
   

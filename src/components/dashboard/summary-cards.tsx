@@ -57,38 +57,43 @@ export function SummaryCards() {
     )
   }
 
+  const totalAircraft = stats?.totalAircraft ?? 0
+  const overdueCount = stats?.overdueCount ?? 0
+  const dueSoonCount = stats?.dueSoonCount ?? 0
+  const successRateNum = stats?.successRate ? parseFloat(stats.successRate) : 0
+
   const cards = [
     {
       title: "Total Aircraft",
-      value: stats?.totalAircraft || 0,
+      value: totalAircraft,
       icon: Plane,
       color: "text-vj-red",
       bgColor: "bg-vj-red/10",
-      badge: stats?.totalAircraft > 0 ? (stats.totalAircraft > 50 ? "Large Fleet" : "Normal") : null,
+      badge: totalAircraft > 0 ? (totalAircraft > 50 ? "Large Fleet" : "Normal") : null,
     },
     {
       title: "Overdue",
-      value: stats?.overdueCount || 0,
+      value: overdueCount,
       icon: AlertTriangle,
-      color: stats?.overdueCount > 0 ? "text-error" : "text-gray-900",
-      bgColor: stats?.overdueCount > 0 ? "bg-error/10" : "bg-gray-100",
-      badge: stats?.overdueCount > 0 ? "Critical" : null,
+      color: overdueCount > 0 ? "text-error" : "text-gray-900",
+      bgColor: overdueCount > 0 ? "bg-error/10" : "bg-gray-100",
+      badge: overdueCount > 0 ? "Critical" : null,
     },
     {
       title: "Due Soon",
-      value: stats?.dueSoonCount || 0,
+      value: dueSoonCount,
       icon: TrendingUp,
       color: "text-warning",
       bgColor: "bg-warning/10",
-      badge: stats?.dueSoonCount > 0 ? "Warning" : null,
+      badge: dueSoonCount > 0 ? "Warning" : null,
     },
     {
       title: "Success Rate",
       value: `${stats?.successRate || 0}%`,
       icon: CheckCircle2,
-      color: stats?.successRate ? "text-success" : "text-gray-900",
-      bgColor: stats?.successRate ? (stats.successRate >= 95 ? "bg-success/10" : stats.successRate >= 90 ? "bg-warning/10" : "bg-gray-100") : "bg-gray-100",
-      badge: stats?.successRate >= 95 ? "Excellent" : stats?.successRate >= 90 ? "Good" : stats?.successRate >= 80 ? "Fair" : null,
+      color: successRateNum > 0 ? "text-success" : "text-gray-900",
+      bgColor: successRateNum > 0 ? (successRateNum >= 95 ? "bg-success/10" : successRateNum >= 90 ? "bg-warning/10" : "bg-gray-100") : "bg-gray-100",
+      badge: successRateNum >= 95 ? "Excellent" : successRateNum >= 90 ? "Good" : successRateNum >= 80 ? "Fair" : null,
     },
   ]
 
@@ -137,7 +142,7 @@ export function SummaryCards() {
                   <p className="text-xs text-gray-500">
                     {card.title === "Success Rate" ? "Last 30 days" : "Total"}
                   </p>
-                  {card.title === "Overdue" && stats?.overdueCount > 0 && (
+                  {card.title === "Overdue" && overdueCount > 0 && (
                     <TrendingUp className="w-4 h-4 text-error animate-pulse" />
                   )}
                 </div>
