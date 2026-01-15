@@ -45,7 +45,7 @@ export function AircraftTrendChart({ aircraft, height = 300 }: AircraftTrendChar
     maintainAspectRatio: false,
     scales: {
       y: {
-        beginAt: 80,
+        min: 80,
         max: 100,
         ticks: {
           callback: function(value: any) {
