@@ -12,7 +12,11 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(gcloud auth:*)",
-      "Bash(gcloud functions logs read:*)"
+      "Bash(gcloud functions logs read:*)",
+      "Bash(export PROJECT_ID=\"autoland-vj\")",
+      "Bash(export REGION=\"asia-southeast1\")",
+      "Bash(export IMAGE_NAME=\"$REGION-docker.pkg.dev/$PROJECT_ID/autoland-vj/autoland-vj:latest\")",
+      "Bash(gcloud builds submit:*)"
     ]
   }
 }

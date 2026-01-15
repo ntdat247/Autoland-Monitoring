@@ -1462,6 +1462,257 @@ gcloud secrets versions list gmail-oauth-refresh-token --project=$PROJECT_ID
 
 ---
 
+## 🔧 TROUBLESHOOTING GUIDE
+
+### Common Issues & Solutions
+
+---
+
+### Issue #1: Gmail Notifications Received But Dashboard Empty
+
+**Symptoms:**
+- Cloud Function logs show "Received CloudEvent"
+- No errors in logs
+- But dashboard doesn't show new reports
+
+**Root Cause Analysis:**
+
+Phiên debug 2026-01-16 đã tìm ra **3 bugs liên tiếp**:
+
+#### Bug #1: Pub/Sub Message Parsing Failure
+
+**Error:**
+```
+Invalid Pub/Sub message format
+cloudEvent.data type: object
+```
+
+**Nguyên nhân:**
+- Cloud Functions Gen2 với Pub/Sub trigger gửi `cloudEvent.data` dưới dạng **Buffer**, không phải string
+- Code cũ chỉ check `typeof cloudEvent.data === 'string'`
+
+**Fix đã áp dụng:**
+```javascript
+// File: cloud-functions/gmail-pubsub-processor/index.js:50-53
+} else if (Buffer.isBuffer(cloudEvent.data)) {
+  // FIX: Cloud Functions Gen2 may send data as Buffer
+  base64Data = cloudEvent.data.toString('base64');
+  console.log('Using buffer format: cloudEvent.data (Buffer)');
+}
+```
+
+**Commits:** `c25569a`, `71da9e0`
+
+---
+
+#### Bug #2: Gmail History API Query Logic Error
+
+**Error:**
+```
+No new messages found in history
+```
+
+**Nguyên nhân:**
+- Notification's `historyId` là **current state**, không phải start point
+- Code dùng `startHistoryId: currentHistoryId` → query từ current → current = luôn rỗng
+
+**Fix đã áp dụng:**
+```javascript
+// File: cloud-functions/gmail-pubsub-processor/index.js:113-140
+// Strategy:
+// 1. Query forward from notification historyId
+// 2. If no history, fallback to fetch last 10 INBOX messages directly
+
+if (!history.data.history || history.data.history.length === 0) {
+  console.log('No new messages found in history (querying forward from notification historyId)');
+
+  // Fallback: Get recent messages directly from INBOX
+  const recentMessages = await gmail.users.messages.list({
+    userId: 'me',
+    labelIds: ['INBOX'],
+    maxResults: 10,
+  });
+
+  for (const msg of recentMessages.data.messages) {
+    await processMessage(gmail, msg.id);
+  }
+}
+```
+
+**Commits:** `71da9e0`
+
+---
+
+#### Bug #3: PostgreSQL Timestamp Format Error
+
+**Error:**
+```
+invalid input syntax for type timestamp: "Thu Jan 15 2026 00:00:00 GMT+0000 (Coordinated Universal Time)T15:48:00Z"
+```
+
+**Nguyên nhân:**
+- PDF parser trả về Date objects cho `date_utc` và `time_utc`
+- Khi string concatenation, JavaScript tự convert thành human-readable string
+- PostgreSQL không parse được format này
+
+**Fix đã áp dụng:**
+```typescript
+// File: src/app/api/reports/process-internal/route.ts:137-145
+let dateUtcStr = parsedData.date_utc;
+let timeUtcStr = parsedData.time_utc;
+
+// Convert Date objects to ISO strings
+if (dateUtcStr instanceof Date) {
+  dateUtcStr = dateUtcStr.toISOString().split('T')[0] // YYYY-MM-DD
+}
+if (timeUtcStr instanceof Date) {
+  timeUtcStr = timeUtcStr.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
+}
+
+// Create datetime_utc in ISO format for PostgreSQL timestamptz
+const datetimeUtc = `${dateUtcStr}T${timeUtcStr}:00+00`
+```
+
+**Commits:** `f8156f5`
+
+**Deployment Status:**
+- ✅ Cloud Function `gmail-pubsub-processor`: Deployed với Bug #1 & #2 fix
+- ⏳ Cloud Run `autoland-api`: **CHƯA deploy** Bug #3 fix (pending deploy)
+
+---
+
+### How to Check Cloud Function Logs
+
+```bash
+export PROJECT_ID="autoland-vj"
+
+# View logs từ Gmail processor
+gcloud functions logs read gmail-pubsub-processor \
+  --region=asia-southeast1 \
+  --limit=100 \
+  --project=$PROJECT_ID
+
+# Stream logs real-time
+gcloud functions logs read gmail-pubsub-processor \
+  --region=asia-southeast1 \
+  --follow \
+  --project=$PROJECT_ID
+```
+
+**Expected logs (after fixes):**
+```
+Received CloudEvent: {...}
+Using buffer format: cloudEvent.data (Buffer)
+Parsed message data: {...}
+Access token refreshed successfully
+Current notification historyId: 12345678
+Gmail profile historyId: 12345678
+Found X new message(s)
+Processing message: 1234567890abcdef
+Message subject: Autoland Report
+Found 1 PDF attachment(s)
+PDF downloaded: XXXXX bytes
+Calling API endpoint to process PDF...
+```
+
+---
+
+### Issue #2: Email Sent But No Pub/Sub Notification
+
+**Symptoms:**
+- Email arrives in Gmail
+- No Pub/Sub message triggered
+- Cloud Function logs show nothing
+
+**Possible Causes:**
+
+1. **Gmail Watch expired** (hết hạn 7 ngày)
+   ```bash
+   # Check expiration
+   curl https://$REGION-$PROJECT_ID.cloudfunctions.net/renew-gmail-watch
+
+   # Manually renew
+   node scripts/setup-gmail-watch.js
+   ```
+
+2. **Pub/Sub topic không có permission**
+   ```bash
+   # Verify Gmail SA permission
+   gcloud pubsub topics get-iam-policy gmail-notifications --project=$PROJECT_ID
+   ```
+
+3. **Email filter không match**
+   - Cloud Function chỉ process email có subject chứa "Autoland"
+   - Check email subject trong logs
+
+---
+
+### Issue #3: PDF Processed But Not Saved to Database
+
+**Symptoms:**
+- Cloud Function logs show "PDF downloaded"
+- API endpoint returns error
+- Dashboard empty
+
+**Check API logs:**
+```bash
+export PROJECT_ID="autoland-vj"
+
+# View Cloud Run logs
+gcloud run logs read autoland-vj \
+  --region=asia-southeast1 \
+  --limit=100 \
+  --project=$PROJECT_ID
+```
+
+**Common errors:**
+
+1. **Timestamp format error** → Deploy lại Cloud Run với fix
+2. **Duplicate report** → Report number đã tồn tại trong DB
+3. **Database connection error** → Check Cloud SQL connection
+
+---
+
+### Issue #4: OAuth2 Authentication Failures
+
+**Error:** `invalid_grant` hoặc `unauthorized_client`
+
+**Solutions:**
+
+1. **Refresh token bị revoke** → Lấy token mới
+   ```bash
+   node scripts/setup-gmail-watch.js
+   ```
+
+2. **Redirect URI mismatch** → Thêm URI vào OAuth Client
+   - Vào Google Cloud Console > APIs & Services > Credentials
+   - Click vào OAuth Client ID
+   - Thêm redirect URI vào "Authorized redirect URIs"
+
+3. **Cloud Function cache old secret** → Redeploy
+   ```bash
+   gcloud functions deploy gmail-pubsub-processor \
+     --gen2 --runtime=nodejs20 \
+     --region=asia-southeast1 \
+     # ... (các flags khác)
+   ```
+
+---
+
+### Quick Troubleshooting Checklist
+
+Khi Gmail integration không hoạt động:
+
+- [ ] Check Cloud Function logs xem có Pub/Sub message không
+- [ ] Check Gmail Watch có còn hạn không
+- [ ] Test gửi email với subject chứa "Autoland"
+- [ ] Check API logs xem có lỗi không
+- [ ] Verify database connection
+- [ ] Check OAuth2 credentials (refresh token valid?)
+- [ ] Test manual trigger Cloud Function
+
+---
+
 ## 📚 Tài liệu liên quan
 
 - [DEVELOPMENT.md](./DEVELOPMENT.md) - Hướng dẫn setup môi trường development local
@@ -1472,10 +1723,13 @@ gcloud secrets versions list gmail-oauth-refresh-token --project=$PROJECT_ID
 
 **Maintained by:** Vietjet AMO ICT Department
 **Contact:** moc@vietjetair.com
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-16
 
 **Changelog:**
-- **2026-01-15:** 
+- **2026-01-16:**
+  - Thêm troubleshooting guide cho Gmail integration issues
+  - Thêm context về 3 bugs quan trọng đã fix: Pub/Sub parsing, Gmail History API, Timestamp format
+- **2026-01-15:**
   - Cập nhật Bước 4 - Enable APIs trong 1 lệnh để tránh rate limit (HTTP 429)
   - Cập nhật Document AI region từ asia-southeast1 → us (chỉ có us/eu available)
   - Thêm checklist và common errors cho setup-gmail-watch.js

@@ -1,6 +1,6 @@
 # Memory Bank - Autoland Monitoring Project
 
-**Last Updated:** 2026-01-15 (Deployment Complete)
+**Last Updated:** 2026-01-16 (Gmail Integration Debug Session Complete)
 **Purpose:** Central repository for important project context, decisions, and changes
 
 ---
@@ -75,6 +75,107 @@
 ---
 
 ## 🐛 Critical Bug Fixes
+
+### Gmail Integration Debug Session (2026-01-16)
+
+**Context:** Gmail notifications were received but dashboard was not displaying reports. Investigation revealed 3 critical bugs.
+
+#### Bug #1: Pub/Sub Message Parsing Failure
+
+**Issue:** Cloud Function logs showed "Invalid Pub/Sub message format" despite Gmail Watch working.
+
+**Root Cause:** Cloud Functions Gen2 with Pub/Sub trigger sends `cloudEvent.data` as **Buffer** type, not string. Code only checked for `typeof cloudEvent.data === 'string'`.
+
+**Fix Applied:**
+```javascript
+// File: cloud-functions/gmail-pubsub-processor/index.js:50-53
+} else if (Buffer.isBuffer(cloudEvent.data)) {
+  base64Data = cloudEvent.data.toString('base64');
+  console.log('Using buffer format: cloudEvent.data (Buffer)');
+}
+```
+
+**Deployment Status:** ✅ Deployed to Cloud Function `gmail-pubsub-processor`
+**Commits:** `c25569a`, `71da9e0`
+**Verification:** Logs showed "Using buffer format: cloudEvent.data (Buffer)" after deploy
+
+---
+
+#### Bug #2: Gmail History API Query Logic Error
+
+**Issue:** After Bug #1 fix, logs consistently showed "No new messages found in history" despite test emails being received.
+
+**Root Cause:** Notification's `historyId` represents the **current** historyId of mailbox, not a starting point. Code used it as `startHistoryId` in Gmail History API query - essentially asking "what changed from current point to current point?" which always returns empty.
+
+**Fix Applied:**
+```javascript
+// File: cloud-functions/gmail-pubsub-processor/index.js:113-140
+// Dual strategy:
+// 1. Query forward from notification historyId to see if anything AFTER
+// 2. Fallback: Fetch last 10 INBOX messages directly if no history found
+
+if (!history.data.history || history.data.history.length === 0) {
+  console.log('No new messages found in history');
+
+  // Fallback: Check recent messages in INBOX
+  const recentMessages = await gmail.users.messages.list({
+    userId: 'me',
+    labelIds: ['INBOX'],
+    maxResults: 10,
+  });
+
+  for (const msg of recentMessages.data.messages) {
+    await processMessage(gmail, msg.id);
+  }
+}
+```
+
+**Deployment Status:** ✅ Deployed to Cloud Function `gmail-pubsub-processor`
+**Commit:** `71da9e0`
+**Verification:** Test email triggered fallback mechanism successfully
+
+**Important Note:** Fallback strategy was necessary because:
+- Gmail History API requires knowing the last processed historyId (START point)
+- Without persistent storage of lastHistoryId, we can't query history range properly
+- Fetching recent INBOX messages is more reliable for simple deployments
+
+---
+
+#### Bug #3: PostgreSQL Timestamp Format Error
+
+**Issue:** After Bug #2 fix, test email was processed but API returned error:
+```
+invalid input syntax for type timestamp: "Thu Jan 15 2026 00:00:00 GMT+0000 (Coordinated Universal Time)T15:48:00Z"
+```
+
+**Root Cause:** PDF parser returned Date objects for `date_utc` and `time_utc`. When used in string concatenation, JavaScript automatically converted them to human-readable strings (e.g., "Thu Jan 15 2026..."), which PostgreSQL timestamptz cannot parse.
+
+**Fix Applied:**
+```typescript
+// File: src/app/api/reports/process-internal/route.ts:137-145
+let dateUtcStr = parsedData.date_utc;
+let timeUtcStr = parsedData.time_utc;
+
+// Convert Date objects to ISO strings
+if (dateUtcStr instanceof Date) {
+  dateUtcStr = dateUtcStr.toISOString().split('T')[0] // YYYY-MM-DD
+}
+if (timeUtcStr instanceof Date) {
+  timeUtcStr = timeUtcStr.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
+}
+
+// Create datetime_utc in ISO format for PostgreSQL timestamptz
+const datetimeUtc = `${dateUtcStr}T${timeUtcStr}:00+00`
+```
+
+**Deployment Status:** ⏳ **PENDING DEPLOYMENT** to Cloud Run `autoland-api`
+**Commit:** `f8156f5`
+**Next Steps:**
+1. Build and push new Docker image with this fix
+2. Deploy to Cloud Run
+3. Test end-to-end with real Gmail email
+
+---
 
 ### PDF Download (2025-12-28)
 **Issue:** Variable `file` was defined twice causing compilation error
@@ -370,6 +471,109 @@ PHẦN D: VERIFY & AUTOMATION (Bước 17-18)
 
 ---
 
+### Gmail Integration Debug Session (2026-01-16)
+
+**Objective:** Debug why Gmail Autoland report emails are received but not appearing on dashboard
+
+**Duration:** ~2 hours
+**Session Type:** Remote debugging via logs analysis
+
+**Debug Process:**
+
+1. **Initial Problem Statement:**
+   - User forwarded Autoland report email to monitored Gmail account
+   - Cloud Function logs showed "Invalid Pub/Sub message format"
+   - Dashboard showed no new reports
+
+2. **Investigation Phase 1 - Pub/Sub Message Format:**
+   - Analyzed Cloud Function logs: "cloudEvent.data type: object"
+   - Researched Cloud Functions Gen2 Pub/Sub trigger behavior
+   - **Discovery:** Gen2 sends `cloudEvent.data` as Buffer, not string
+   - **Fix:** Added `Buffer.isBuffer(cloudEvent.data)` check
+   - **Deployment:** Deployed Cloud Function with fix
+   - **Verification:** Logs showed "Using buffer format: cloudEvent.data (Buffer)"
+
+3. **Investigation Phase 2 - Gmail History API:**
+   - After Pub/Sub fix, new error: "No new messages found in history"
+   - Analyzed Gmail History API usage in code
+   - **Discovery:** Code used `startHistoryId: currentHistoryId` (query from current to current)
+   - **Root Cause:** Notification's historyId is the END point, not START point
+   - **Fix:** Implemented fallback strategy - fetch last 10 INBOX messages directly
+   - **Deployment:** Deployed Cloud Function with fallback
+   - **Verification:** Test email triggered fallback successfully
+
+4. **Investigation Phase 3 - API Timestamp Error:**
+   - After Gmail fix, new error in API logs:
+     ```
+     invalid input syntax for type timestamp: "Thu Jan 15 2026 00:00:00 GMT+0000 (Coordinated Universal Time)T15:48:00Z"
+     ```
+   - Analyzed PDF parser output type
+   - **Discovery:** Parser returns Date objects, auto-converted to strings by JavaScript
+   - **Root Cause:** PostgreSQL timestamptz requires ISO 8601 format
+   - **Fix:** Added Date object detection and ISO conversion
+   - **Deployment:** Committed but NOT deployed (pending)
+
+**Key Learnings:**
+
+1. **Cloud Functions Gen2 Behavior:**
+   - Pub/Sub trigger sends data as Buffer, not string
+   - Need to check multiple types: string, Buffer, wrapped format
+   - Always add comprehensive logging for CloudEvent structure
+
+2. **Gmail History API Semantics:**
+   - `historyId` in notification = current state (END point)
+   - `startHistoryId` parameter = where to START querying from
+   - Without persistent storage of lastHistoryId, history queries are unreliable
+   - **Solution:** Fallback to fetching recent INBOX messages is more practical
+
+3. **PostgreSQL Type Handling:**
+   - timestamptz requires ISO 8601 format: `YYYY-MM-DDTHH:MM:SS+00`
+   - JavaScript Date objects auto-convert to human-readable strings in concatenation
+   - Always explicitly format dates before database operations
+   - Use `toISOString()` for dates, custom format for times
+
+4. **Debugging Workflow:**
+   - Start with Cloud Function logs (entry point)
+   - Follow the data flow: Pub/Sub → Gmail API → API endpoint → Database
+   - Each fix may reveal the next issue (chain of bugs)
+   - Test with real data, not just unit tests
+
+**Files Modified:**
+1. `cloud-functions/gmail-pubsub-processor/index.js` - 2 fixes applied
+2. `src/app/api/reports/process-internal/route.ts` - 1 fix applied (pending deploy)
+
+**Commits:**
+- `c25569a` - Pub/Sub Buffer handling
+- `71da9e0` - Gmail History API fallback
+- `f8156f5` - Timestamp format conversion
+
+**Testing Strategy:**
+1. Send test email with "Autoland" in subject
+2. Monitor Cloud Function logs in real-time
+3. Verify each step: Pub/Sub → Gmail API → PDF download → API call
+4. Check database for new record
+5. Verify dashboard displays new report
+
+**Documentation Updates:**
+- README.md: Added comprehensive TROUBLESHOOTING GUIDE section
+- MEMORY_BANK.md: Added detailed debug session notes
+- Preserved commit history and deployment status
+
+**Next Steps (Pending):**
+1. Deploy Cloud Run with timestamp fix (commit f8156f5)
+2. Test end-to-end with real Gmail email
+3. Verify report appears on dashboard
+4. Update deployment status in docs
+
+**Session Summary:**
+- Found and fixed 3 critical bugs in Gmail integration pipeline
+- All fixes have been implemented and committed
+- Cloud Function deployed with 2/3 fixes
+- Cloud Run deployment pending for final fix
+- Documentation updated to preserve context for future sessions
+
+---
+
 ### Hybrid PDF Parser Implementation (2025-12-30)
 **Objective:** Reduce Document AI costs by 80-90%
 
@@ -455,11 +659,57 @@ PHẦN D: VERIFY & AUTOMATION (Bước 17-18)
 
 ## 🚀 Deployment
 
-### Current Deployment Status (2026-01-15)
+### Current Deployment Status (2026-01-16)
 
-**Project:** `autoland-monitoring-test`
-**Cloud Run URL:** `https://autoland-monitoring-test-555768155013.asia-southeast1.run.app`
-**Target Domain:** `autoland.blocksync.me` (pending DNS setup)
+**Project:** `autoland-vj`
+**Cloud Run URL:** `https://autoland-vj-555768155013.asia-southeast1.run.app`
+**Target Domain:** `autoland.blocksync.me`
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Cloud Run (Next.js) | ✅ Deployed & Running | **Needs redeploy** with timestamp fix (commit f8156f5) |
+| Cloud Function `gmail-pubsub-processor` | ✅ Deployed (2nd gen) | Includes Bug #1 & #2 fixes |
+| Cloud Function `renew-gmail-watch` | ✅ Deployed (2nd gen) | Auto-renews Gmail Watch every 6 days |
+| Cloud Scheduler `renew-gmail-watch-weekly` | ✅ Created | Runs every 6 days |
+| Pub/Sub Topic `gmail-notifications` | ✅ Created | Gmail push notifications working |
+| Secret `google-client-secret` | ✅ Created | OAuth2 client secret |
+| Secret `gmail-oauth-refresh-token` | ✅ Valid | Version 5, starts with `1//` |
+| Secret `autoland-db-password` | ✅ Created | Cloud SQL password |
+| Gmail Watch | ✅ Active | Expires 2026-01-22, auto-renewal enabled |
+| Cloud SQL `autoland-db` | ✅ Running | PostgreSQL 15 |
+| Document AI Processor | ✅ Created | US region (fallback only) |
+| Database Migrations | ✅ All 5 run | Including extraction metrics (005) |
+| Custom Domain Mapping | ✅ Completed | `autoland.blocksync.me` |
+
+**Gmail Integration Status:**
+- ✅ Pub/Sub notifications: Working (Bug #1 fixed)
+- ✅ Gmail API calls: Working (OAuth2 valid)
+- ✅ PDF download: Working
+- ⏳ PDF processing: **Blocked by Bug #3** (timestamp format)
+
+**Recent Debug Session (2026-01-16):**
+
+**Issues Found and Fixed:**
+
+1. ✅ **Pub/Sub Parsing** - Cloud Function couldn't parse Pub/Sub messages
+   - Fix: Added Buffer type detection
+   - Status: Deployed and verified
+
+2. ✅ **Gmail History API** - "No new messages found in history"
+   - Fix: Added fallback to fetch recent INBOX messages
+   - Status: Deployed and verified
+
+3. ⏳ **Timestamp Format** - PostgreSQL can't parse JavaScript Date strings
+   - Fix: Convert Date objects to ISO format before DB insert
+   - Status: **Committed but NOT deployed yet**
+
+**Pending Actions:**
+1. Build new Docker image with commit `f8156f5`
+2. Deploy to Cloud Run
+3. Test end-to-end with real Gmail email
+4. Verify report appears on dashboard
+
+**Previous Status (2026-01-15):**
 
 | Component | Status |
 |-----------|--------|
