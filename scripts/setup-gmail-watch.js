@@ -92,6 +92,14 @@ async function getAccessToken() {
           console.log('\n✅ Authorization successful!');
           if (tokens.refresh_token) {
             console.log('Refresh token obtained. You can use this to refresh access tokens.');
+            console.log('\n🔑 REFRESH TOKEN (save this to Secret Manager):');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log(tokens.refresh_token);
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+          } else {
+            console.log('⚠️  No refresh token received. This may happen if you already authorized before.');
+            console.log('   To get a new refresh token, revoke access at: https://myaccount.google.com/permissions');
+            console.log('   Then run this script again.\n');
           }
           
           resolve(oauth2Client);
@@ -128,6 +136,14 @@ async function getAccessToken() {
             console.log('\n✅ Authorization successful!');
             if (tokens.refresh_token) {
               console.log('Refresh token obtained. You can use this to refresh access tokens.');
+              console.log('\n🔑 REFRESH TOKEN (save this to Secret Manager):');
+              console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+              console.log(tokens.refresh_token);
+              console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+            } else {
+              console.log('⚠️  No refresh token received. This may happen if you already authorized before.');
+              console.log('   To get a new refresh token, revoke access at: https://myaccount.google.com/permissions');
+              console.log('   Then run this script again.\n');
             }
             
             resolve(oauth2Client);
