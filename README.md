@@ -318,9 +318,82 @@ Hoặc kiểm tra trong Console:
 
 ---
 
-## Bước 5: Tạo Service Account
+## Bước 5: Setup Database (Cloud SQL) ⭐ QUAN TRỌNG
 
-### Tạo Service Account:
+**⚠️ QUAN TRỌNG:** Database là nền tảng của toàn bộ hệ thống. Nên tạo database TRƯỚC khi deploy code vì:
+- Cloud SQL cần 5-10 phút để khởi tạo
+- Migration scripts cần database đã sẵn sàng
+- Test API endpoints cần có database connection
+
+### Tạo Cloud SQL Instance:
+
+```bash
+export PROJECT_ID="autoland-vj"
+export DB_PASSWORD="YOUR_SECURE_PASSWORD"  # Thay bằng password mạnh, LƯU LẠI password này!
+
+# Tạo PostgreSQL instance
+gcloud sql instances create autoland-db \
+  --database-version=POSTGRES_15 \
+  --tier=db-f1-micro \
+  --region=asia-southeast1 \
+  --storage-auto-increase \
+  --storage-size=10GB \
+  --project=$PROJECT_ID
+
+# Đợi instance được tạo (có thể mất 5-10 phút)
+# Kiểm tra status:
+gcloud sql instances describe autoland-db --project=$PROJECT_ID
+```
+
+### Tạo Database:
+
+```bash
+# Tạo database
+gcloud sql databases create autoland \
+  --instance=autoland-db \
+  --project=$PROJECT_ID
+```
+
+### Tạo User:
+
+```bash
+# Tạo user (sử dụng CÙNG password đã đặt ở trên)
+gcloud sql users create autoland \
+  --instance=autoland-db \
+  --password=$DB_PASSWORD \
+  --project=$PROJECT_ID
+```
+
+### Lấy Connection Name:
+
+```bash
+# Lấy connection name để dùng trong Cloud Run
+gcloud sql instances describe autoland-db \
+  --project=$PROJECT_ID \
+  --format='value(connectionName)'
+```
+
+Output sẽ là: `PROJECT_ID:asia-southeast1:autoland-db`
+
+**⚠️ Lưu ý:**
+1. Ghi nhớ **DB_PASSWORD** đã đặt - sẽ cần ở Bước 9 (Secret Manager)
+2. Ghi nhớ **connection name** này để dùng trong deployment
+
+### Verify Database:
+
+```bash
+# Kiểm tra database status
+gcloud sql instances list --project=$PROJECT_ID
+
+# Test connection (tùy chọn)
+gcloud sql connect autoland-db --user=autoland --project=$PROJECT_ID
+# Nhập password khi được hỏi, nên thấy prompt: `autoland=>`
+# Gõ \q để exit
+```
+
+---
+
+## Bước 6: Tạo Service Account
 
 ```bash
 export PROJECT_ID="autoland-vj"
@@ -379,7 +452,7 @@ gcloud iam service-accounts keys create ./gcp-key.json \
 
 ---
 
-## Bước 6: Tạo Document AI Processor
+## Bước 7: Tạo Document AI Processor
 
 Document AI processors không thể tạo qua gcloud CLI. **Phải tạo qua Google Cloud Console:**
 
@@ -404,13 +477,13 @@ Document AI processors không thể tạo qua gcloud CLI. **Phải tạo qua Goo
    ```
    projects/autoland-vj/locations/us/processors/abc123def456
    ```
-5. **Copy toàn bộ Processor ID này** để dùng trong Cloud Run deployment (Bước 11)
+5. **Copy toàn bộ Processor ID này** để dùng trong Cloud Run deployment (Bước 12)
 
 **Lưu ý:** Processor ID cần để cấu hình trong Cloud Run environment variables. Latency từ `asia-southeast1` (Cloud Run) đến `us` (Document AI) là chấp nhận được vì Document AI chỉ được dùng làm fallback (~15% cases).
 
 ---
 
-## Bước 7: Tạo Cloud Storage Bucket
+## Bước 8: Tạo Cloud Storage Bucket
 
 ```bash
 export PROJECT_ID="autoland-vj"
@@ -427,71 +500,13 @@ gsutil ls gs://$BUCKET_NAME
 
 ---
 
-## Bước 8: Setup Database (Cloud SQL)
-
-**⚠️ QUAN TRỌNG:** Đảm bảo đã link billing account ở Bước 3 trước khi tạo Cloud SQL instance. Cloud SQL là dịch vụ có phí và yêu cầu billing account.
-
-### Tạo Cloud SQL Instance:
-
-```bash
-export PROJECT_ID="autoland-vj"
-export DB_PASSWORD="YOUR_SECURE_PASSWORD"  # Thay bằng password mạnh
-
-# Tạo PostgreSQL instance
-gcloud sql instances create autoland-db \
-  --database-version=POSTGRES_15 \
-  --tier=db-f1-micro \
-  --region=asia-southeast1 \
-  --storage-auto-increase \
-  --storage-size=10GB \
-  --project=$PROJECT_ID
-
-# Đợi instance được tạo (có thể mất 5-10 phút)
-# Kiểm tra status:
-gcloud sql instances describe autoland-db --project=$PROJECT_ID
-```
-
-### Tạo Database:
-
-```bash
-# Tạo database
-gcloud sql databases create autoland \
-  --instance=autoland-db \
-  --project=$PROJECT_ID
-```
-
-### Tạo User:
-
-```bash
-# Tạo user
-gcloud sql users create autoland \
-  --instance=autoland-db \
-  --password=$DB_PASSWORD \
-  --project=$PROJECT_ID
-```
-
-### Lấy Connection Name:
-
-```bash
-# Lấy connection name để dùng trong Cloud Run
-gcloud sql instances describe autoland-db \
-  --project=$PROJECT_ID \
-  --format='value(connectionName)'
-```
-
-Output sẽ là: `PROJECT_ID:asia-southeast1:autoland-db`
-
-**Lưu ý:** Ghi nhớ connection name này để dùng trong deployment
-
----
-
 ## Bước 9: Cấu hình Secret Manager (Database)
 
 Tạo secret cho database password trước khi deploy Cloud Run:
 
 ```bash
 export PROJECT_ID="autoland-vj"
-# ⚠️ Sử dụng CÙNG password đã dùng khi tạo Cloud SQL user ở Bước 8
+# ⚠️ Sử dụng CÙNG password đã dùng khi tạo Cloud SQL user ở Bước 5
 export DB_PASSWORD="your-db-password"  # Thay bằng password đã tạo
 
 # Tạo secret cho database password
@@ -610,7 +625,7 @@ gcloud run deploy autoland-vj \
 ```
 
 **Lưu ý:**
-- Thay `YOUR_PROCESSOR_ID` bằng Processor ID từ Bước 6
+- Thay `YOUR_PROCESSOR_ID` bằng Processor ID từ Bước 7
 - Thay `YOUR_DOMAIN` bằng domain sẽ map (VD: `autoland.blocksync.me`)
 
 ---
@@ -658,7 +673,7 @@ gcloud beta run domain-mappings describe \
   --project=$PROJECT_ID
 ```
 
-**Lưu ý:** DNS propagation có thể mất 5-30 phút. Đợi domain hoạt động trước khi tiếp tục Bước 14.
+**Lưu ý:** DNS propagation có thể mất 5-30 phút. Đợi domain hoạt động trước khi tiếp tục Bước 13.
 
 ---
 
