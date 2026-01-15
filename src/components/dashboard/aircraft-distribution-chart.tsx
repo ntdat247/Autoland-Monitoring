@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useDashboardData } from "@/hooks/use-dashboard"
 import {
@@ -47,51 +46,43 @@ export function AircraftDistributionChart({ showLegend = true, height = 300 }: A
   const options: ChartOptions<"doughnut"> = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: [
-      {
-        legend: {
-          display: showLegend,
-          position: "right" as const,
-          labels: {
-            color: "#6B7280",
-            font: {
-              size: 12,
-              family: "Inter, sans-serif",
-            },
-            padding: 20,
-            usePointStyle: true,
-            pointStyle: {
-              pointStyle: false,
-            },
-          },
-        },
-      },
-      {
-        tooltip: {
-          enabled: true,
-          position: "average" as const,
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          titleFont: {
-            size: 14,
-            weight: "bold",
-            family: "Inter, sans-serif",
-          },
-          bodyFont: {
+    plugins: {
+      legend: {
+        display: showLegend,
+        position: "right" as const,
+        labels: {
+          color: "#6B7280",
+          font: {
             size: 12,
             family: "Inter, sans-serif",
           },
-          callbacks: {
-            label: function(context: any) {
-              const label = context.label || ""
-              const value = context.raw || 0
-              const total = context.chart?.data?.datasets?.[0]?.data?.reduce((a: any, b: any) => a + b, 0) || stats?.totalAircraft || 1
-              const percentage = ((value / total) * 100).toFixed(1)
-              return `${label}: ${value} (${percentage}%)`
-            },
+          padding: 20,
+          usePointStyle: true,
+        },
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        titleFont: {
+          size: 14,
+          weight: "bold",
+          family: "Inter, sans-serif",
+        },
+        bodyFont: {
+          size: 12,
+          family: "Inter, sans-serif",
+        },
+        callbacks: {
+          label: function(context: any) {
+            const label = context.label || ""
+            const value = context.raw || 0
+            const total = context.chart?.data?.datasets?.[0]?.data?.reduce((a: any, b: any) => a + b, 0) || stats?.totalAircraft || 1
+            const percentage = ((value / total) * 100).toFixed(1)
+            return `${label}: ${value} (${percentage}%)`
           },
         },
       },
-    ],
+    },
     cutout: "50%",
     elements: {
       arc: {
