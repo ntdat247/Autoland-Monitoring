@@ -324,10 +324,13 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:autoland-service@$PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
 
-#roles/cloudbuild.builds.builder
-gcloud projects add-iam-policy-binding autoland-monitoring \
- --member=serviceAccount:748321344074-compute@developer.gserviceaccount.com \
- --role=roles/cloudbuild.builds.builder 
+# Cloud Build Builder (nếu cần deploy Cloud Functions)
+# Lấy project number trước
+export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member=serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com \
+  --role=roles/cloudbuild.builds.builder 
 ```
 
 ### Download Service Account Key (Cho các services khác):
@@ -521,13 +524,20 @@ gcloud auth configure-docker $REGION-docker.pkg.dev --project=$PROJECT_ID
 
 ```bash
 export IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/autoland-monitoring"
-export IMAGE_TAG="latest"
 
-# Build với Cloud Build (khuyến nghị)
+# Cách 1: Build với cloudbuild.yaml (khuyến nghị - có cả SHORT_SHA và latest tags)
 gcloud builds submit \
-  --tag $IMAGE_NAME:$IMAGE_TAG \
+  --config cloudbuild.yaml \
   --project=$PROJECT_ID
+
+# Cách 2: Build trực tiếp với Dockerfile (nhanh hơn, chỉ có latest tag)
+gcloud builds submit \
+  --tag $IMAGE_NAME:latest \
+  --project=$PROJECT_ID \
+  --timeout=1200
 ```
+
+**Lưu ý:** Dockerfile nằm trong `docker/Dockerfile`. Lệnh trên sẽ tự động tìm Dockerfile ở root hoặc dùng cloudbuild.yaml để chỉ định path.
 
 ---
 
@@ -596,9 +606,10 @@ Thêm DNS records cho subdomain của bạn:
 ```bash
 export PROJECT_ID="autoland-monitoring"
 export REGION="asia-southeast1"
-export DOMAIN="autoland.yourdomain.com"  # Thay bằng domain của bạn
+export DOMAIN="autoland.yourdomain.com"  # Thay bằng domain của bạn (VD: autoland.blocksync.me)
 
-gcloud run domain-mappings create \
+# Lưu ý: Cần dùng gcloud beta cho domain-mappings
+gcloud beta run domain-mappings create \
   --service=autoland-monitoring \
   --domain=$DOMAIN \
   --region=$REGION \
@@ -608,7 +619,8 @@ gcloud run domain-mappings create \
 ### Verify domain mapping:
 
 ```bash
-gcloud run domain-mappings describe $DOMAIN \
+gcloud beta run domain-mappings describe \
+  --domain=$DOMAIN \
   --region=$REGION \
   --project=$PROJECT_ID
 ```
@@ -1033,7 +1045,8 @@ node scripts/setup-gmail-watch.js
 
 ```bash
 # Test Cloud Function manually
-curl -X POST https://asia-southeast1-autoland-monitoring.cloudfunctions.net/renew-gmail-watch
+# Thay PROJECT_ID bằng project ID của bạn
+curl -X POST https://asia-southeast1-$PROJECT_ID.cloudfunctions.net/renew-gmail-watch
 
 # View Cloud Function logs
 gcloud functions logs read renew-gmail-watch --region=asia-southeast1 --limit=50 --project=$PROJECT_ID
@@ -1088,11 +1101,14 @@ gcloud run services describe autoland-monitoring \
 ### Test service:
 
 ```bash
+# Thay YOUR_DOMAIN bằng domain đã map (VD: autoland.blocksync.me)
+export DOMAIN="YOUR_DOMAIN"
+
 # Test health endpoint (nếu có)
-curl https://autoland.amoict.com/api/health
+curl https://$DOMAIN/api/health
 
 # Test dashboard
-curl https://autoland.amoict.com/dashboard
+curl https://$DOMAIN/dashboard
 ```
 
 ### View logs:
@@ -1116,21 +1132,25 @@ gcloud run logs read autoland-monitoring \
 Đảm bảo OAuth2 redirect URI đã được cấu hình với custom domain:
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/)
-2. Chọn project `autoland-monitoring`
+2. Chọn project của bạn
 3. Vào **APIs & Services** > **Credentials**
 4. Click vào OAuth Client ID đã tạo
 5. Kiểm tra **Authorized redirect URIs** có:
    ```
-   https://autoland.amoict.com/api/test/gmail/callback
+   https://YOUR_DOMAIN/api/test/gmail/callback
    ```
+   **Ví dụ:** `https://autoland.blocksync.me/api/test/gmail/callback`
+   
    Nếu chưa có, thêm vào và click **SAVE**
 
 ### Verify Domain Mapping:
 
 ```bash
 # Kiểm tra domain mapping status
-gcloud run domain-mappings describe autoland.amoict.com \
-  --region $REGION \
+# Thay YOUR_DOMAIN bằng domain đã map
+gcloud beta run domain-mappings describe \
+  --domain=YOUR_DOMAIN \
+  --region=$REGION \
   --project=$PROJECT_ID
 ```
 
@@ -1148,7 +1168,7 @@ Hệ thống Autoland Monitoring đã được deploy thành công lên Google C
 2. ✅ Test PDF processing với email thật
 3. ✅ Verify data được lưu vào database
 4. ✅ Setup monitoring và alerts
-5. ✅ Verify custom domain `autoland.amoict.com` hoạt động đúng
+5. ✅ Verify custom domain hoạt động đúng
 6. ✅ **Monitor cost savings từ Hybrid PDF Parser system**
 
 ---
@@ -1184,7 +1204,8 @@ PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
 
 **API Endpoint để xem metrics:**
 ```bash
-curl https://autoland.amoict.com/api/dashboard/cost-savings
+# Thay YOUR_DOMAIN bằng domain đã deploy
+curl https://YOUR_DOMAIN/api/dashboard/cost-savings
 ```
 
 **Response:**
@@ -1207,7 +1228,8 @@ curl https://autoland.amoict.com/api/dashboard/cost-savings
 
 ```bash
 # Test hybrid parser trên production
-curl https://autoland.amoict.com/api/test/pdf/hybrid-test
+# Thay YOUR_DOMAIN bằng domain đã deploy
+curl https://YOUR_DOMAIN/api/test/pdf/hybrid-test
 ```
 
 ### Database Schema (Migration 005):
@@ -1262,12 +1284,14 @@ gcloud run logs read autoland-monitoring --region $REGION --follow --project=$PR
 gcloud run services delete autoland-monitoring --region $REGION --project=$PROJECT_ID
 
 # --- NEW: Cost Savings Tracking ---
+# Thay YOUR_DOMAIN bằng domain đã deploy (VD: autoland.blocksync.me)
+export DOMAIN="YOUR_DOMAIN"
 
 # View cost savings metrics
-curl https://autoland.amoict.com/api/dashboard/cost-savings | jq '.data.overview'
+curl https://$DOMAIN/api/dashboard/cost-savings | jq '.data.overview'
 
 # Test hybrid parser
-curl https://autoland.amoict.com/api/test/pdf/hybrid-test | jq '.statistics'
+curl https://$DOMAIN/api/test/pdf/hybrid-test | jq '.statistics'
 
 # View extraction statistics from database
 gcloud sql connect autoland-db --user=autoland --project=$PROJECT_ID --quiet --command="
@@ -1296,7 +1320,8 @@ FROM autoland_reports;
 # --- Gmail Watch Renewal Commands ---
 
 # Test Gmail Watch renewal Cloud Function manually
-curl -X POST https://asia-southeast1-autoland-monitoring.cloudfunctions.net/renew-gmail-watch
+# Thay PROJECT_ID bằng project ID của bạn
+curl -X POST https://$REGION-$PROJECT_ID.cloudfunctions.net/renew-gmail-watch
 
 # View Cloud Function logs
 gcloud functions logs read renew-gmail-watch \
