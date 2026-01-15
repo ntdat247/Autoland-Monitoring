@@ -1,6 +1,6 @@
 # Memory Bank - Autoland Monitoring Project
 
-**Last Updated:** 2026-01-15 (Deployment Session)
+**Last Updated:** 2026-01-15 (Deployment Complete)
 **Purpose:** Central repository for important project context, decisions, and changes
 
 ---
@@ -265,16 +265,33 @@ PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
 | Node engine warnings | `docker/Dockerfile` | Upgraded `node:18-alpine` → `node:20-alpine` |
 | Invalid npm flag | `docker/Dockerfile` | Changed `npm ci --only=production=false` → `npm ci` |
 
+**TypeScript Build Fixes (2026-01-15 - Cloud Build):**
+
+| Issue | File | Fix |
+|-------|------|-----|
+| Invalid `body` callback in Chart.js | `aircraft-trend-chart.tsx` | Removed invalid `body` callback, improved `label` callback |
+| Chart ref type mismatch | `aircraft-trend-chart.tsx` | Used `react-chartjs-2` `Line` component properly |
+| `plugins` as array instead of object | `aircraft-distribution-chart.tsx` | Changed `plugins: [...]` → `plugins: {...}` |
+| Missing pagination props in type | `src/types/index.ts` | Added `page`, `per_page`, `sort_by`, `sort_order` to `ReportFilters` |
+| String compared to number | `success-rate-card.tsx`, `summary-cards.tsx` | Parse `successRate` string to number before comparison |
+| `beginAt` not valid | `success-rate-chart.tsx` | Changed to `min`, used mock data for missing `history` |
+| Parameter with `?` and default | `src/lib/api.ts` | Removed `?` from parameter with default value |
+| DateTimeFormatOptions type | `src/lib/utils.ts` | Used `Record<string, Intl.DateTimeFormatOptions>` |
+| Missing `pdf2json` module | `pdf-text-extractor.ts` | Installed `pdf2json` package |
+| Missing `public` folder | Docker build | Created `public/.gitkeep` |
+
 **Resource IDs:**
 
 | Resource | ID |
 |----------|-----|
 | Project | `autoland-monitoring-test` |
+| Cloud Run URL | `https://autoland-monitoring-test-555768155013.asia-southeast1.run.app` |
 | Document AI Processor | `projects/autoland-monitoring-test/locations/us/processors/ac5cded15d980c63` |
 | Service Account | `autoland-service@autoland-monitoring-test.iam.gserviceaccount.com` |
 | Cloud SQL Connection | `autoland-monitoring-test:asia-southeast1:autoland-db` |
 | Storage Bucket | `autoland-reports` |
 | OAuth Client ID | `555768155013-2hm72qls36fd0umk5d6ak0fln422it7r.apps.googleusercontent.com` |
+| Docker Image | `asia-southeast1-docker.pkg.dev/autoland-monitoring-test/autoland-monitoring/autoland-monitoring:latest` |
 
 **Secrets in Secret Manager:**
 
@@ -300,7 +317,15 @@ PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
 | 4 | `cloudbuild.yaml` using gcr.io | Changed to Artifact Registry |
 | 5 | Cloud Function missing OAuth2 | Added OAuth2 token handling |
 
-**README Reorganization:**
+**README Updates (2026-01-15):**
+
+1. **Project ID changed:** `autoland-monitoring` → `autoland-vj` (for new deployments)
+2. **Service Account:** `autoland-monitoring-runner` → `autoland-vj-runner`
+3. **Domain mapping:** Updated to use `gcloud beta run domain-mappings`
+4. **TOC numbering:** Each section (A, B, C, D) now starts from 1
+5. **Removed hardcoded values:** Service account numbers, domain names use variables
+
+**README Structure:**
 
 New structure for production deployment with custom domain:
 
@@ -433,30 +458,34 @@ PHẦN D: VERIFY & AUTOMATION (Bước 17-18)
 ### Current Deployment Status (2026-01-15)
 
 **Project:** `autoland-monitoring-test`
-**Target Domain:** TBD (after Cloud Run deploy)
+**Cloud Run URL:** `https://autoland-monitoring-test-555768155013.asia-southeast1.run.app`
+**Target Domain:** `autoland.blocksync.me` (pending DNS setup)
 
 | Component | Status |
 |-----------|--------|
-| Cloud Function `gmail-pubsub-processor` | ✅ Deployed |
-| Cloud Function `renew-gmail-watch` | ✅ Deployed |
+| Cloud Run (Next.js) | ✅ Deployed & Running |
+| Cloud Function `gmail-pubsub-processor` | ✅ Deployed (2nd gen) |
+| Cloud Function `renew-gmail-watch` | ✅ Deployed (2nd gen) |
 | Cloud Scheduler `renew-gmail-watch-weekly` | ✅ Created (every 6 days) |
 | Pub/Sub Topic `gmail-notifications` | ✅ Created |
 | Secret `google-client-secret` | ✅ Created |
-| Secret `gmail-oauth-refresh-token` | ✅ Updated (version 5, valid) |
+| Secret `gmail-oauth-refresh-token` | ✅ Valid (starts with `1//`) |
 | Secret `autoland-db-password` | ✅ Created |
 | Gmail Watch | ✅ Active (expires 2026-01-22) |
 | Cloud SQL `autoland-db` | ✅ Running (PostgreSQL 15) |
 | Document AI Processor | ✅ Created (US region) |
-| Cloud Run (Next.js) | 🔄 Building with Node 20 |
-| Custom Domain Mapping | ❌ Not done |
-| Database Migrations | ❌ Not run |
+| Database Migrations | ✅ All 5 migrations run |
+| Custom Domain Mapping | ⏳ Pending DNS setup |
 
-**Next Steps:**
-1. Wait for Cloud Build to complete
-2. Deploy Cloud Run
-3. Map custom domain (optional)
-4. Run database migrations
-5. Test application
+**Verified Working:**
+- Dashboard loads correctly
+- API endpoints return 200
+- Gmail Watch renewed successfully
+- Refresh token valid
+
+**Pending:**
+- Custom domain mapping (need `gcloud beta run domain-mappings`)
+- Gmail integration test (forward email to trigger processing)
 
 ### Environment Variables
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`

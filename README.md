@@ -168,7 +168,7 @@ Google Cloud SDK 450.0.0
 
 ```bash
 # Set biến PROJECT_ID
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 
 # Tạo project mới
 gcloud projects create $PROJECT_ID --name="Autoland Monitoring"
@@ -186,7 +186,7 @@ gcloud config get-value project
 2. Click vào dropdown project ở góc trên cùng
 3. Click **NEW PROJECT**
 4. **Project name:** `Autoland Monitoring`
-5. **Project ID:** `autoland-monitoring` (hoặc tự chọn)
+5. **Project ID:** `autoland-VJ` (hoặc tự chọn)
 6. Click **CREATE**
 7. Chọn project vừa tạo
 
@@ -197,7 +197,7 @@ gcloud config get-value project
 1. Vào [Billing](https://console.cloud.google.com/billing)
 2. Click **LINK A BILLING ACCOUNT**
 3. Chọn billing account hoặc tạo mới
-4. Link với project `autoland-monitoring`
+4. Link với project `autoland-vj`
 
 **Lưu ý:** 
 - Free trial có $300 credit trong 90 ngày
@@ -211,7 +211,7 @@ gcloud config get-value project
 ### Enable APIs qua gcloud CLI:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 
 # Enable Cloud Run API
 gcloud services enable run.googleapis.com --project=$PROJECT_ID
@@ -256,7 +256,7 @@ gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT_ID
 Gmail API thường không thể enable qua CLI do permission issues. **Phải enable qua Console:**
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/)
-2. Chọn project `autoland-monitoring`
+2. Chọn project `autoland-vj`
 3. Vào **APIs & Services** > **Library**
 4. Tìm "Gmail API":
    - Gõ "Gmail API" vào search box
@@ -293,7 +293,7 @@ Hoặc kiểm tra trong Console:
 ### Tạo Service Account:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 
 # Tạo Service Account
 gcloud iam service-accounts create autoland-service \
@@ -354,7 +354,7 @@ gcloud iam service-accounts keys create ./gcp-key.json \
 Document AI processors không thể tạo qua gcloud CLI. **Phải tạo qua Google Cloud Console:**
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/)
-2. Chọn project `autoland-monitoring`
+2. Chọn project `autoland-vj`
 3. Vào **Document AI** (tìm trong menu hoặc search "Document AI")
 4. Nếu lần đầu, click **GET STARTED** hoặc **CREATE PROCESSOR**
 5. **Processor Type:** Chọn **OCR Processor**
@@ -369,7 +369,7 @@ Document AI processors không thể tạo qua gcloud CLI. **Phải tạo qua Goo
 3. Trong trang **Details**, tìm **Processor ID** hoặc **Resource Name**
 4. Format sẽ là:
    ```
-   projects/autoland-monitoring/locations/asia-southeast1/processors/abc123def456
+   projects/autoland-vj/locations/asia-southeast1/processors/abc123def456
    ```
 5. **Copy toàn bộ Processor ID này** để dùng trong Cloud Run deployment (Bước 13)
 
@@ -380,7 +380,7 @@ Document AI processors không thể tạo qua gcloud CLI. **Phải tạo qua Goo
 ## Bước 7: Tạo Cloud Storage Bucket
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export BUCKET_NAME="autoland-reports"
 
 # Tạo bucket để lưu PDF files
@@ -401,7 +401,7 @@ gsutil ls gs://$BUCKET_NAME
 ### Tạo Cloud SQL Instance:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export DB_PASSWORD="YOUR_SECURE_PASSWORD"  # Thay bằng password mạnh
 
 # Tạo PostgreSQL instance
@@ -457,7 +457,7 @@ Output sẽ là: `PROJECT_ID:asia-southeast1:autoland-db`
 Tạo secret cho database password trước khi deploy Cloud Run:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 # ⚠️ Sử dụng CÙNG password đã dùng khi tạo Cloud SQL user ở Bước 8
 export DB_PASSWORD="your-db-password"  # Thay bằng password đã tạo
 
@@ -467,11 +467,11 @@ echo -n "$DB_PASSWORD" | gcloud secrets create autoland-db-password \
   --project=$PROJECT_ID
 
 # Tạo Service Account cho Cloud Run
-gcloud iam service-accounts create autoland-monitoring-runner \
+gcloud iam service-accounts create autoland-vj-runner \
   --display-name="Autoland Monitoring Cloud Run Service Account" \
   --project=$PROJECT_ID
 
-export SA_EMAIL="autoland-monitoring-runner@$PROJECT_ID.iam.gserviceaccount.com"
+export SA_EMAIL="autoland-vj-runner@$PROJECT_ID.iam.gserviceaccount.com"
 
 # Grant quyền truy cập secret
 gcloud secrets add-iam-policy-binding autoland-db-password \
@@ -502,9 +502,9 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 ### Tạo Artifact Registry repository:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export REGION="asia-southeast1"
-export REPO_NAME="autoland-monitoring"
+export REPO_NAME="autoland-vj"
 
 # Tạo repository
 gcloud artifacts repositories create $REPO_NAME \
@@ -523,7 +523,7 @@ gcloud auth configure-docker $REGION-docker.pkg.dev --project=$PROJECT_ID
 ### Build và push Docker image:
 
 ```bash
-export IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/autoland-monitoring"
+export IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/autoland-vj"
 
 # Cách 1: Build với cloudbuild.yaml (khuyến nghị - có cả SHORT_SHA và latest tags)
 gcloud builds submit \
@@ -544,14 +544,14 @@ gcloud builds submit \
 ## Bước 11: Deploy to Cloud Run
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export REGION="asia-southeast1"
-export IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/autoland-monitoring/autoland-monitoring:latest"
-export SA_EMAIL="autoland-monitoring-runner@$PROJECT_ID.iam.gserviceaccount.com"
+export IMAGE_NAME="$REGION-docker.pkg.dev/$PROJECT_ID/autoland-vj/autoland-vj:latest"
+export SA_EMAIL="autoland-vj-runner@$PROJECT_ID.iam.gserviceaccount.com"
 export CONNECTION_NAME="$PROJECT_ID:asia-southeast1:autoland-db"
 
 # Deploy
-gcloud run deploy autoland-monitoring \
+gcloud run deploy autoland-vj \
   --image $IMAGE_NAME \
   --region $REGION \
   --platform managed \
@@ -604,13 +604,13 @@ Thêm DNS records cho subdomain của bạn:
 ### Map domain với Cloud Run:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export REGION="asia-southeast1"
 export DOMAIN="autoland.yourdomain.com"  # Thay bằng domain của bạn (VD: autoland.blocksync.me)
 
 # Lưu ý: Cần dùng gcloud beta cho domain-mappings
 gcloud beta run domain-mappings create \
-  --service=autoland-monitoring \
+  --service=autoland-vj \
   --domain=$DOMAIN \
   --region=$REGION \
   --project=$PROJECT_ID
@@ -634,7 +634,7 @@ gcloud beta run domain-mappings describe \
 ### Connect to Cloud SQL:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 
 # Connect to Cloud SQL
 gcloud sql connect autoland-db --user=autoland --project=$PROJECT_ID
@@ -727,7 +727,7 @@ Nếu muốn tự động xử lý email qua Pub/Sub, thực hiện các bước
 ### Tạo Pub/Sub Topic:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export TOPIC_NAME="gmail-notifications"
 
 # Tạo Pub/Sub topic
@@ -754,7 +754,7 @@ gcloud pubsub topics add-iam-policy-binding $TOPIC_NAME \
 **⚠️ BẮT BUỘC:** Trước khi deploy Cloud Function Gen2, cần grant permissions cho default compute service account:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 
 # Lấy project number
 export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
@@ -782,7 +782,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 **⚠️ BẮT BUỘC:** Tạo các secrets trong Secret Manager trước khi deploy Cloud Function:
 
 ```bash
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export SA_EMAIL="autoland-service@$PROJECT_ID.iam.gserviceaccount.com"
 export GOOGLE_CLIENT_SECRET="GOCSPX-your-client-secret"  # Thay bằng Client Secret thật
 
@@ -823,7 +823,7 @@ npm install
 
 # Deploy Cloud Function
 # Đảm bảo export các biến cần thiết trước
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export TOPIC_NAME="gmail-notifications"
 export FUNCTION_NAME="gmail-pubsub-processor"
 export REGION="asia-southeast1"
@@ -878,7 +878,7 @@ cd ~/your-project-folder  # Thư mục chứa project
 npm install
 
 # Export các biến môi trường
-export GCP_PROJECT_ID="autoland-monitoring"
+export GCP_PROJECT_ID="autoland-vj"
 export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"  # Từ OAuth2 credentials
 
 # Lấy secret từ Secret Manager để đảm bảo credentials khớp nhau
@@ -931,7 +931,7 @@ Refresh token obtained. You can use this to refresh access tokens.
 ```bash
 # Copy refresh token từ output của script (BẮT ĐẦU BẰNG "1//")
 export REFRESH_TOKEN="1//0g..."  # Thay bằng refresh token thực tế
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 
 # Update secret (secret đã được tạo từ bước trước)
 echo -n "$REFRESH_TOKEN" | gcloud secrets versions add gmail-oauth-refresh-token \
@@ -977,7 +977,7 @@ Cloud Scheduler tự động gọi Cloud Function mỗi 6 ngày để renew Gmai
 ```bash
 # --- Step 1: Get Refresh Token ---
 export MANUAL_FLOW=true
-export GCP_PROJECT_ID="autoland-monitoring"
+export GCP_PROJECT_ID="autoland-vj"
 export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
 export GOOGLE_CLIENT_SECRET="GOCSPX-your-client-secret"
 export GOOGLE_REDIRECT_URI="http://localhost:3000/oauth2callback"
@@ -988,7 +988,7 @@ node scripts/setup-gmail-watch.js
 
 # --- Step 2: Update Refresh Token in Secret Manager ---
 # (Secret đã được tạo từ bước "Tạo Secrets cho Cloud Function")
-export PROJECT_ID="autoland-monitoring"
+export PROJECT_ID="autoland-vj"
 export REFRESH_TOKEN="1//0g..."  # Thay bằng refresh token thực tế
 
 echo -n "$REFRESH_TOKEN" | gcloud secrets versions add gmail-oauth-refresh-token \
@@ -1031,7 +1031,7 @@ gcloud scheduler jobs create http renew-gmail-watch-weekly \
 Chạy thủ công mỗi tuần để renew Gmail Watch:
 
 ```bash
-export GCP_PROJECT_ID="autoland-monitoring"
+export GCP_PROJECT_ID="autoland-vj"
 export GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
 export GOOGLE_CLIENT_SECRET="GOCSPX-your-client-secret"
 export GOOGLE_REDIRECT_URI="http://localhost:3000/oauth2callback"
@@ -1093,7 +1093,7 @@ Pub/Sub Topic (gmail-notifications)
 ### Check service status:
 
 ```bash
-gcloud run services describe autoland-monitoring \
+gcloud run services describe autoland-vj \
   --region $REGION \
   --project=$PROJECT_ID
 ```
@@ -1115,13 +1115,13 @@ curl https://$DOMAIN/dashboard
 
 ```bash
 # Stream logs
-gcloud run logs read autoland-monitoring \
+gcloud run logs read autoland-vj \
   --region $REGION \
   --follow \
   --project=$PROJECT_ID
 
 # View last 100 lines
-gcloud run logs read autoland-monitoring \
+gcloud run logs read autoland-vj \
   --region $REGION \
   --limit 100 \
   --project=$PROJECT_ID
@@ -1272,16 +1272,16 @@ FROM autoland_reports;
 
 ```bash
 # View service details
-gcloud run services describe autoland-monitoring --region $REGION --project=$PROJECT_ID
+gcloud run services describe autoland-vj --region $REGION --project=$PROJECT_ID
 
 # Update service
-gcloud run services update autoland-monitoring --region $REGION --project=$PROJECT_ID
+gcloud run services update autoland-vj --region $REGION --project=$PROJECT_ID
 
 # View logs
-gcloud run logs read autoland-monitoring --region $REGION --follow --project=$PROJECT_ID
+gcloud run logs read autoland-vj --region $REGION --follow --project=$PROJECT_ID
 
 # Delete service (nếu cần)
-gcloud run services delete autoland-monitoring --region $REGION --project=$PROJECT_ID
+gcloud run services delete autoland-vj --region $REGION --project=$PROJECT_ID
 
 # --- NEW: Cost Savings Tracking ---
 # Thay YOUR_DOMAIN bằng domain đã deploy (VD: autoland.blocksync.me)
