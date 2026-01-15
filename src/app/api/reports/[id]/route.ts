@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { google } from "@google-cloud/storage/build/node"
 
 interface RouteParams {
   params: {
