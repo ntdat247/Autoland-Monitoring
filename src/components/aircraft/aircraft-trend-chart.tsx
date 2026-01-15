@@ -13,8 +13,7 @@ interface AircraftTrendChartProps {
 }
 
 export function AircraftTrendChart({ aircraft, height = 300 }: AircraftTrendChartProps) {
-  const chartRef = useRef<ChartJS>(null)
-  const chartInstance = useRef<ChartReact>(null)
+  const chartRef = useRef<ChartJS | null>(null)
 
   // Mock data - should be fetched from API
   const chartData = {
@@ -168,9 +167,6 @@ export function AircraftTrendChart({ aircraft, height = 300 }: AircraftTrendChar
     return () => {
       if (chartRef.current) {
         chartRef.current.destroy()
-      }
-      if (chartInstance.current) {
-        chartInstance.current.destroy()
       }
     }
   }, [])
