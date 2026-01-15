@@ -65,19 +65,19 @@ Hướng dẫn deploy hệ thống Autoland Monitoring lên Google Cloud Platfor
 11. [Bước 9: Cấu hình Secret Manager (Database)](#bước-9-cấu-hình-secret-manager-database)
 
 **Phần B: Deploy Application**
-12. [Bước 10: Build Docker Image](#bước-10-build-docker-image)
-13. [Bước 11: Deploy to Cloud Run](#bước-11-deploy-to-cloud-run)
-14. [Bước 12: Map Custom Domain](#bước-12-map-custom-domain)
-15. [Bước 13: Run Database Migrations](#bước-13-run-database-migrations)
+1. [Bước 10: Build Docker Image](#bước-10-build-docker-image)
+2. [Bước 11: Deploy to Cloud Run](#bước-11-deploy-to-cloud-run)
+3. [Bước 12: Map Custom Domain](#bước-12-map-custom-domain)
+4. [Bước 13: Run Database Migrations](#bước-13-run-database-migrations)
 
 **Phần C: Setup Gmail Integration** *(Thực hiện SAU KHI có custom domain)*
-16. [Bước 14: Setup OAuth2 cho Gmail](#bước-14-setup-oauth2-cho-gmail)
-17. [Bước 15: Setup Pub/Sub và Gmail Watch](#bước-15-setup-pubsub-và-gmail-watch)
-18. [Bước 16: Deploy Cloud Functions](#bước-16-deploy-cloud-functions)
+1. [Bước 14: Setup OAuth2 cho Gmail](#bước-14-setup-oauth2-cho-gmail)
+2. [Bước 15: Setup Pub/Sub và Gmail Watch](#bước-15-setup-pubsub-và-gmail-watch)
+3. [Bước 16: Deploy Cloud Functions](#bước-16-deploy-cloud-functions)
 
 **Phần D: Verify & Automation**
-19. [Bước 17: Verify Deployment](#bước-17-verify-deployment)
-20. [Bước 18: Setup Gmail Watch Renewal Automation](#bước-18-setup-gmail-watch-renewal-automation)
+1. [Bước 17: Verify Deployment](#bước-17-verify-deployment)
+2. [Bước 18: Setup Gmail Watch Renewal Automation](#bước-18-setup-gmail-watch-renewal-automation)
 
 ---
 
