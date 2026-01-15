@@ -69,6 +69,10 @@ export interface ReportFilters {
   result?: 'SUCCESSFUL' | 'UNSUCCESSFUL' | 'ALL'
   status?: string
   search?: string
+  page?: number
+  per_page?: number
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
 }
 
 export interface FleetFilters {
