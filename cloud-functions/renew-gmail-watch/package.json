@@ -4,7 +4,7 @@
   "description": "Cloud Function to automatically renew Gmail Watch for Autoland Monitoring System",
   "main": "index.js",
   "scripts": {
-    "deploy": "gcloud functions deploy renew-gmail-watch --gen2 --runtime=nodejs20 --region=asia-southeast1 --source=. --entry-point=renewGmailWatch --trigger-http --allow-unauthenticated",
+    "deploy": "gcloud functions deploy renew-gmail-watch --gen2 --runtime=nodejs24 --region=asia-southeast1 --source=. --entry-point=renewGmailWatch --trigger-http --allow-unauthenticated",
     "test": "node index.js"
   },
   "keywords": [
@@ -20,6 +20,6 @@
     "googleapis": "^126.0.1"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   }
 }

@@ -25,11 +25,21 @@ Dashboard giám sát tình trạng thực hiện Autoland của đội tàu bay 
 |-----------|------------|
 | **Frontend** | Next.js 14, React 18, TypeScript, Tailwind CSS |
 | **Backend** | Next.js API Routes |
-| **Database** | PostgreSQL (Cloud SQL) |
+| **Database** | PostgreSQL 15 (Cloud SQL) |
 | **Storage** | Google Cloud Storage |
 | **Deployment** | Google Cloud Run |
+| **Functions** | Cloud Run Functions (Node.js 24) |
 | **APIs** | Gmail API, Pub/Sub |
 | **PDF Processing** | pdf2json (FREE) |
+
+### Runtime Support (Feb 2026)
+
+| Runtime | Status | Notes |
+|---------|--------|-------|
+| **Node.js 24** | ✅ **GA (Recommended)** | Phiên bản mới nhất |
+| Node.js 22 | GA | LTS |
+| Node.js 20 | Maintenance | Sắp hết hạn |
+| Node.js 18 | Deprecated | Không khuyến nghị |
 
 ---
 
@@ -52,7 +62,7 @@ autoland-monitoring/
 │   └── renew-gmail-watch/      # Auto-renew Gmail Watch
 ├── database/                   # SQL migrations
 ├── docs/                       # Documentation
-├── docker/                     # Dockerfile
+├── docker/                     # Dockerfile (Node.js 24)
 └── scripts/                    # Setup scripts
 ```
 
@@ -77,7 +87,7 @@ autoland-monitoring/
 git clone <repository-url>
 cd Autoland-Monitoring
 
-# Install dependencies
+# Install dependencies (requires Node.js 24+)
 npm install
 
 # Copy environment file
@@ -168,7 +178,7 @@ Hướng dẫn deploy hệ thống Autoland Monitoring lên Google Cloud Platfor
 │  └── Secret Manager (DB password)                               │
 ├─────────────────────────────────────────────────────────────────┤
 │  PHẦN B: DEPLOY APPLICATION (Bước 9-12)                         │
-│  ├── Build Docker Image                                         │
+│  ├── Build Docker Image (Node.js 24)                            │
 │  ├── Deploy to Cloud Run                                        │
 │  ├── ⭐ MAP CUSTOM DOMAIN                                       │
 │  └── Run Database Migrations                                    │
@@ -176,7 +186,7 @@ Hướng dẫn deploy hệ thống Autoland Monitoring lên Google Cloud Platfor
 │  PHẦN C: GMAIL INTEGRATION (Bước 13-15)                         │
 │  ├── Setup OAuth2                                               │
 │  ├── Setup Pub/Sub & Gmail Watch                                │
-│  └── Deploy Cloud Functions                                     │
+│  └── Deploy Cloud Functions (Node.js 24)                        │
 ├─────────────────────────────────────────────────────────────────┤
 │  PHẦN D: VERIFY & AUTOMATION (Bước 16-17)                       │
 │  ├── Verify Deployment                                          │
@@ -662,7 +672,7 @@ export SA_EMAIL="autoland-service@$PROJECT_ID.iam.gserviceaccount.com"
 
 gcloud functions deploy gmail-pubsub-processor \
   --gen2 \
-  --runtime=nodejs20 \
+  --runtime=nodejs24 \
   --region=$REGION \
   --source=. \
   --entry-point=processGmailNotification \
@@ -742,7 +752,7 @@ export REGION="asia-southeast1"
 export SA_EMAIL="autoland-service@$PROJECT_ID.iam.gserviceaccount.com"
 
 gcloud functions deploy renew-gmail-watch \
-  --gen2 --runtime=nodejs20 --region=$REGION --source=. \
+  --gen2 --runtime=nodejs24 --region=$REGION --source=. \
   --entry-point=renewGmailWatch --trigger-http \
   --service-account=$SA_EMAIL \
   --set-env-vars "GCP_PROJECT_ID=$PROJECT_ID" \
@@ -775,7 +785,7 @@ gcloud scheduler jobs create http renew-gmail-watch-weekly \
 | Gmail notifications not received | Check Gmail Watch expiration (7 days), run `renew-gmail-watch` |
 | PDF processing fails | Check Cloud Run logs for errors |
 | OAuth2 `invalid_grant` | Re-run `setup-gmail-watch.js` to get new refresh token |
-| Pub/Sub message parsing error | Verify Cloud Function is using nodejs20 runtime |
+| Pub/Sub message parsing error | Verify Cloud Function is using nodejs24 runtime |
 | Database connection error | Check Cloud SQL connection and Secret Manager |
 
 ### Check Logs
@@ -834,9 +844,13 @@ Hệ thống Autoland Monitoring đã được deploy thành công lên Google C
 
 ---
 
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-02-22
 
 **Changelog:**
+- **2026-02-22:**
+  - **Upgraded to Node.js 24** (latest GA release)
+  - Updated Dockerfile, Cloud Functions package.json
+  - Added Node.js runtime support table
 - **2026-02-21:**
   - Combined README.md and README1.md into single file
   - **REMOVED Document AI dependency** - PDF parsing now uses only pdf2json (100% free)

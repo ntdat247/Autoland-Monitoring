@@ -21,7 +21,7 @@ cd cloud-functions/renew-gmail-watch
 npm install
 
 gcloud functions deploy renew-gmail-watch \
-  --gen2 --runtime=nodejs20 --region=asia-southeast1 \
+  --gen2 --runtime=nodejs24 --region=asia-southeast1 \
   --source=. --entry-point=renewGmailWatch --trigger-http \
   --service-account=autoland-service@autoland-monitoring.iam.gserviceaccount.com \
   --set-env-vars="GCP_PROJECT_ID=autoland-monitoring" \
