@@ -152,9 +152,6 @@ GCP_PROJECT_ID=autoland-monitoring
 GCP_KEY_FILE=./gcp-key.json
 GCP_STORAGE_BUCKET=autoland-reports
 
-# Document AI Configuration
-DOCUMENT_AI_PROCESSOR_ID=projects/autoland-monitoring/locations/us/processors/YOUR_PROCESSOR_ID
-
 # OAuth2 Configuration (Gmail)
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your-client-secret
@@ -176,12 +173,7 @@ Xem hướng dẫn trong [README.md](./README.md) - Bước 5 để tạo và do
 
 Xem hướng dẫn trong [README.md](./README.md) - Bước 8 để tạo OAuth2 Client ID và Client Secret.
 
-**3. Document AI Processor ID:**
-
-Xem hướng dẫn trong [README.md](./README.md) - Bước 6 để tạo và lấy Processor ID.
-
 **Lưu ý:**
-- Thay `YOUR_PROCESSOR_ID` bằng Processor ID thực tế
 - Thay `your-client-id` và `your-client-secret` bằng OAuth2 credentials thực tế
 - **KHÔNG commit file `.env` lên Git!** (đã có trong `.gitignore`)
 - **KHÔNG commit file `gcp-key.json` lên Git!** (đã có trong `.gitignore`)

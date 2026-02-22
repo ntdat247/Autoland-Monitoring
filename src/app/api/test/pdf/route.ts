@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server"
 import { google } from "googleapis"
 import { Storage } from "@google-cloud/storage"
-import { DocumentProcessorServiceClient } from "@google-cloud/documentai"
+import { parsePDFWithFallback } from "@/lib/parsers/hybrid-pdf-parser"
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic'
 
 /**
- * Test endpoint để kiểm tra PDF download và extraction
+ * Test endpoint to check PDF download and extraction
  * GET /api/test/pdf?messageId=xxx&attachmentId=xxx
  * 
  * Steps:
- * 1. Download PDF từ Gmail attachment
- * 2. Upload PDF lên Cloud Storage
- * 3. Extract text từ PDF bằng Document AI
+ * 1. Download PDF from Gmail attachment
+ * 2. Upload PDF to Cloud Storage
+ * 3. Extract text from PDF using pdf2json (free)
  */
 export async function GET(request: Request) {
   try {
@@ -109,46 +109,23 @@ export async function GET(request: Request) {
 
     console.log(`PDF uploaded to: gs://${bucketName}/${fileName}`)
 
-    // Step 4: Extract text using Document AI
-    const documentAI = new DocumentProcessorServiceClient({
-      keyFilename: process.env.GCP_KEY_FILE,
-    })
-
-    const processorName =
-      process.env.DOCUMENT_AI_PROCESSOR_ID ||
-      "projects/YOUR_PROJECT/locations/YOUR_LOCATION/processors/YOUR_PROCESSOR"
-
-    console.log(`Processing PDF with Document AI: ${processorName}`)
-
-    const [result] = await documentAI.processDocument({
-      name: processorName,
-      rawDocument: {
-        content: pdfData,
-        mimeType: "application/pdf",
-      },
-    })
-
-    const document = result.document
-    const extractedText = document?.text || ""
-
-    // Extract structured data (if available)
-    const entities = document?.entities || []
+    // Step 4: Extract text using pdf2json (free method)
+    const parseResult = await parsePDFWithFallback(pdfData)
 
     return NextResponse.json({
-      success: true,
+      success: parseResult.success,
       data: {
         messageId,
         attachmentId,
         pdfSize: pdfData.length,
         storagePath: `gs://${bucketName}/${fileName}`,
         extraction: {
-          text: extractedText.substring(0, 1000), // First 1000 chars
-          fullTextLength: extractedText.length,
-          entities: entities.map((e) => ({
-            type: e.type,
-            value: e.mentionText,
-            confidence: e.confidence,
-          })),
+          method: parseResult.method,
+          success: parseResult.success,
+          data: parseResult.data,
+          errors: parseResult.errors,
+          warnings: parseResult.warnings,
+          metrics: parseResult.metrics,
         },
       },
     })
@@ -166,4 +143,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

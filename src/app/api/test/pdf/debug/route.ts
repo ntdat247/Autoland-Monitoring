@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { google } from "googleapis"
-import { DocumentProcessorServiceClient } from "@google-cloud/documentai"
 import { Storage } from "@google-cloud/storage"
+import { extractTextWithPdfParse, isExtractionViable } from "@/lib/parsers/pdf-text-extractor"
 import { parseAutolandReport } from "@/lib/parsers/autoland-pdf-parser"
 
 // Force dynamic rendering - this route uses request.url
@@ -57,40 +57,29 @@ export async function GET(request: Request) {
       "base64"
     )
 
-    // Extract text using Document AI
-    const documentAI = new DocumentProcessorServiceClient({
-      keyFilename: process.env.GCP_KEY_FILE,
-    })
-
-    const processorName = process.env.DOCUMENT_AI_PROCESSOR_ID
-    if (!processorName) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "DOCUMENT_AI_PROCESSOR_ID not configured",
-        },
-        { status: 500 }
-      )
-    }
-
-    const [result] = await documentAI.processDocument({
-      name: processorName,
-      rawDocument: {
-        content: pdfData,
-        mimeType: "application/pdf",
-      },
-    })
-
-    const document = result.document
-    const extractedText = document?.text || ""
+    // Extract text using pdf2json (free method)
+    const extractionResult = await extractTextWithPdfParse(pdfData)
+    const extractedText = extractionResult.success ? extractionResult.text : ""
+    const isViable = extractionResult.success && isExtractionViable(extractionResult)
 
     // Parse extracted text
-    const parseResult = parseAutolandReport(extractedText)
+    const parseResult = isViable ? parseAutolandReport(extractedText) : { 
+      success: false, 
+      data: null, 
+      errors: [extractionResult.error || 'Extraction failed'], 
+      warnings: [] 
+    }
 
     // Return debug information
     return NextResponse.json({
-      success: true,
+      success: parseResult.success,
       data: {
+        extraction: {
+          method: 'pdf2json (free)',
+          success: extractionResult.success,
+          isViable: isViable,
+          error: extractionResult.error,
+        },
         extractedText: extractedText,
         extractedTextLength: extractedText.length,
         parseResult: parseResult,
@@ -136,4 +125,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

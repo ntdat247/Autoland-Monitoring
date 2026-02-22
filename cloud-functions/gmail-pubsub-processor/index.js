@@ -2,14 +2,13 @@
  * Cloud Function: Gmail Pub/Sub Processor
  * 
  * Triggered by Pub/Sub messages from Gmail Watch
- * Processes new emails with PDF attachments and saves to database
+ * Processes new emails with PDF attachments and forwards to API endpoint
  * 
  * Environment Variables Required:
  * - GCP_PROJECT_ID: Google Cloud Project ID
  * - GCP_STORAGE_BUCKET: Cloud Storage bucket name
- * - DOCUMENT_AI_PROCESSOR_ID: Document AI processor ID
+ * - API_BASE_URL: Base URL for API endpoint (Cloud Run URL) - REQUIRED
  * - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD: Database connection
- * - API_BASE_URL: Base URL for API endpoint (Cloud Run URL)
  * 
  * Secrets (via Secret Manager):
  * - GOOGLE_CLIENT_ID: OAuth2 Client ID
@@ -18,9 +17,6 @@
  */
 
 const { google } = require('googleapis');
-const { Storage } = require('@google-cloud/storage');
-const { DocumentProcessorServiceClient } = require('@google-cloud/documentai');
-const { Pool } = require('pg');
 const axios = require('axios');
 
 /**
@@ -309,16 +305,17 @@ async function processPdfAttachment(gmail, messageId, attachment, emailSubject, 
     const pdfData = Buffer.from(attachmentData.data.data, 'base64');
     console.log(`PDF downloaded: ${pdfData.length} bytes`);
     
-    // Check if we should call API endpoint or process directly
+    // Check if API_BASE_URL is configured
     const apiBaseUrl = process.env.API_BASE_URL;
     
-    if (apiBaseUrl) {
-      // Preferred: Call HTTP API endpoint for processing
-      await callApiEndpoint(apiBaseUrl, pdfData, attachment.filename, emailSubject, emailFrom, messageId);
-    } else {
-      // Fallback: Process directly in Cloud Function
-      await processPdfDirectly(pdfData, attachment.filename, emailSubject, emailFrom, messageId);
+    if (!apiBaseUrl) {
+      console.error('API_BASE_URL environment variable is required. Cannot process PDF without API endpoint.');
+      console.error('PDF will be skipped. Please configure API_BASE_URL to enable PDF processing.');
+      return;
     }
+    
+    // Call HTTP API endpoint for processing
+    await callApiEndpoint(apiBaseUrl, pdfData, attachment.filename, emailSubject, emailFrom, messageId);
     
   } catch (error) {
     console.error(`Error processing PDF attachment ${attachment.filename}:`, error);
@@ -376,113 +373,5 @@ async function callApiEndpoint(apiBaseUrl, pdfData, filename, emailSubject, emai
   } catch (error) {
     console.error('Error calling API endpoint:', error.response?.data || error.message);
     throw error;
-  }
-}
-
-/**
- * Process PDF directly (without calling API endpoint)
- * This is a fallback method if API_BASE_URL is not configured
- */
-async function processPdfDirectly(pdfData, filename, emailSubject, emailFrom, messageId) {
-  try {
-    const bucketName = process.env.GCP_STORAGE_BUCKET;
-    if (!bucketName) {
-      throw new Error('GCP_STORAGE_BUCKET environment variable is required');
-    }
-    
-    // Upload to Cloud Storage
-    const storage = new Storage({
-      projectId: process.env.GCP_PROJECT_ID,
-    });
-    
-    // Organize by date: YYYY/MM/DD/filename.pdf
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const storagePath = `${year}/${month}/${day}/${filename}`;
-    
-    const bucket = storage.bucket(bucketName);
-    const file = bucket.file(storagePath);
-    
-    await file.save(pdfData, {
-      metadata: {
-        contentType: 'application/pdf',
-        metadata: {
-          emailSubject: emailSubject,
-          emailFrom: emailFrom,
-          messageId: messageId,
-        }
-      },
-    });
-    
-    console.log(`PDF uploaded to: gs://${bucketName}/${storagePath}`);
-    
-    // Extract text using Document AI
-    const processorName = process.env.DOCUMENT_AI_PROCESSOR_ID;
-    if (!processorName) {
-      throw new Error('DOCUMENT_AI_PROCESSOR_ID environment variable is required');
-    }
-    
-    const documentAI = new DocumentProcessorServiceClient({
-      projectId: process.env.GCP_PROJECT_ID,
-    });
-    
-    const [result] = await documentAI.processDocument({
-      name: processorName,
-      rawDocument: {
-        content: pdfData,
-        mimeType: 'application/pdf',
-      },
-    });
-    
-    const extractedText = result.document?.text || '';
-    console.log(`Extracted text length: ${extractedText.length} characters`);
-    
-    // Save to database (basic implementation)
-    // For production, you should use the API endpoint which has proper parsing logic
-    await saveToDatabase(extractedText, storagePath, bucketName, filename, emailSubject, emailFrom, messageId);
-    
-    console.log('Successfully processed PDF and saved to database');
-    
-  } catch (error) {
-    console.error('Error processing PDF directly:', error);
-    throw error;
-  }
-}
-
-/**
- * Save parsed data to database
- * Note: This is a basic implementation. Use API endpoint for full parsing.
- */
-async function saveToDatabase(extractedText, storagePath, bucketName, filename, emailSubject, emailFrom, messageId) {
-  const dbConfig = {
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-  };
-  
-  // Check required config
-  if (!dbConfig.host || !dbConfig.database || !dbConfig.user || !dbConfig.password) {
-    console.warn('Database configuration incomplete. Skipping database save.');
-    console.log('Extracted text preview:', extractedText.substring(0, 500));
-    return;
-  }
-  
-  const pool = new Pool(dbConfig);
-  
-  try {
-    // Log that we received the PDF (parsing should be done via API endpoint)
-    console.log('PDF received and stored. Use API endpoint for full parsing.');
-    console.log('Storage path:', storagePath);
-    console.log('Extracted text preview:', extractedText.substring(0, 200));
-    
-    // You can add basic insert here if needed, but prefer using API endpoint
-    // for proper parsing with the hybrid parser system
-    
-  } finally {
-    await pool.end();
   }
 }

@@ -1,6 +1,6 @@
 /**
- * Test endpoint for Hybrid PDF Parser with Fallback
- * Tests pdf2json first, then Document AI fallback if needed
+ * Test endpoint for PDF Parser
+ * Tests pdf2json parsing capability
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -28,25 +28,25 @@ export async function GET(request: NextRequest) {
       const fs = await import('fs/promises')
       const pdfBuffer = await fs.readFile(pdfPath)
 
-      // Test hybrid parser with fallback
-      const hybridResult = await parsePDFWithFallback(pdfBuffer)
+      // Test pdf2json parser
+      const parseResult = await parsePDFWithFallback(pdfBuffer)
 
       results.push({
         file: pdfFile,
-        success: hybridResult.success,
-        method: hybridResult.method,
-        parsingAttempts: hybridResult.parsingAttempts,
-        metrics: hybridResult.metrics,
-        data: hybridResult.data ? {
-          report_number: hybridResult.data.report_number,
-          aircraft_reg: hybridResult.data.aircraft_reg,
-          flight_number: hybridResult.data.flight_number,
-          airport: hybridResult.data.airport,
-          runway: hybridResult.data.runway,
-          result: hybridResult.data.result
+        success: parseResult.success,
+        method: parseResult.method,
+        parsingAttempts: parseResult.parsingAttempts,
+        metrics: parseResult.metrics,
+        data: parseResult.data ? {
+          report_number: parseResult.data.report_number,
+          aircraft_reg: parseResult.data.aircraft_reg,
+          flight_number: parseResult.data.flight_number,
+          airport: parseResult.data.airport,
+          runway: parseResult.data.runway,
+          result: parseResult.data.result
         } : null,
-        errors: hybridResult.errors,
-        warnings: hybridResult.warnings
+        errors: parseResult.errors,
+        warnings: parseResult.warnings
       })
     } catch (error) {
       results.push({
@@ -67,19 +67,18 @@ export async function GET(request: NextRequest) {
     extractionSuccess: successfulResults.length,
     parsingSuccess: successfulResults.filter((r: any) => r.success).length,
     freeSuccess: successfulResults.filter((r: any) => r.method === 'pdf2json').length,
-    paidFallback: successfulResults.filter((r: any) => r.method === 'document-ai').length,
     freeSuccessRate: `${costSavings.freeSuccessRate.toFixed(1)}%`,
     overallSuccessRate: `${((successfulResults.length / results.length) * 100).toFixed(1)}%`
   }
 
   return NextResponse.json({
-    test: 'Hybrid PDF Parser Test (pdf2json → Document AI fallback)',
+    test: 'PDF Parser Test (pdf2json only)',
     timestamp: new Date().toISOString(),
     statistics: stats,
     costSavings: {
       totalProcessed: costSavings.totalPdfsProcessed,
       freeSuccess: costSavings.freeSuccessCount,
-      paidFallback: costSavings.paidFallbackCount,
+      freeFail: costSavings.freeFailCount,
       costWithoutHybrid: `$${costSavings.costWithoutHybrid.toFixed(4)}`,
       actualCost: `$${costSavings.actualCost.toFixed(4)}`,
       savings: `$${costSavings.savings.toFixed(4)}`,

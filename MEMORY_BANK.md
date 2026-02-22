@@ -261,12 +261,11 @@ runwayTruncated,
 
 ### Cloud Dependencies
 - `@google-cloud/storage: ^7.7.0` (Added 2025-12-28)
-- `@google-cloud/documentai: ^8.0.0` (PDF text extraction - NOW FALLBACK ONLY)
 - `@google-cloud/pubsub: ^4.0.0` (Cloud Function dependencies)
 - `googleapis: ^144.0.0` (Gmail API, OAuth2)
 
-### PDF Processing Dependencies (Added 2025-12-30)
-- `pdf2json: ^2.1.2` (PRIMARY - FREE PDF text extraction library)
+### PDF Processing Dependencies
+- `pdf2json: ^2.1.2` (FREE PDF text extraction library)
   - Event-based parsing compatible with Next.js webpack
   - No runtime dependencies, lighter weight
   - Successfully extracts text from 100% of test PDFs
@@ -274,16 +273,16 @@ runwayTruncated,
 
 ---
 
-## 💰 Cost Optimization - Hybrid PDF Parser (2025-12-30)
+## 💰 Cost Optimization - PDF Parser (Updated 2026-02-21)
 
 ### Overview
-Implemented cost-saving hybrid PDF parser system to reduce Document AI costs by 80-90%
+PDF parsing sử dụng thư viện pdf2json (FREE) - không còn sử dụng Document AI (paid service).
 
 ### Architecture
 ```
 PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
               ↓ FAIL
-         Document AI (PAID) → Regex Parser → SUCCESS ✅
+         Log Error & Skip
 ```
 
 ### Components
@@ -295,18 +294,19 @@ PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
   - Event-based parsing with error handling
   - Text normalization regex patterns (fixes spacing/encoding issues)
   - Compatible with Next.js 14 webpack
-  - Success rate: 100% on test PDFs
+  - Success rate: 85-95% on Autoland PDFs
 
-#### 2. Hybrid Parser with Fallback
+#### 2. PDF Parser
 - **File:** `src/lib/parsers/hybrid-pdf-parser.ts`
 - **Logic:**
-  1. Try pdf2json (FREE) first
-  2. If parsing fails or insufficient data, fallback to Document AI (PAID)
-  3. Track metrics: method used, actual cost, cost saved
+  1. Extract text using pdf2json (FREE)
+  2. Parse extracted text with regex parser
+  3. If parsing fails, log error and return failure
+  4. Track metrics: method used, cost saved
 - **Metrics:**
-  - `extraction_method`: 'pdf2json' or 'document-ai'
-  - `extraction_cost`: Actual cost in USD
-  - `extraction_cost_saved`: Cost saved by using free method
+  - `extraction_method`: 'pdf2json'
+  - `extraction_cost`: $0 (always free)
+  - `extraction_cost_saved`: $0.015 per PDF
 
 #### 3. Cost Savings Analytics API
 - **Endpoint:** `/api/dashboard/cost-savings`
@@ -369,6 +369,32 @@ PDF File → pdf2json (FREE) → Regex Parser → SUCCESS ✅
 ---
 
 ## 🔄 Recent Changes
+
+### Document AI Removal (2026-02-21)
+
+**Objective:** Remove Google Cloud Document AI dependency to eliminate PDF processing costs entirely.
+
+**Changes Made:**
+
+|| File | Change |
+||------|--------|
+|| `package.json` | Removed `@google-cloud/documentai` dependency |
+|| `cloud-functions/gmail-pubsub-processor/package.json` | Removed `@google-cloud/documentai` dependency |
+|| `src/lib/parsers/hybrid-pdf-parser.ts` | Removed Document AI fallback, only uses pdf2json |
+|| `cloud-functions/gmail-pubsub-processor/index.js` | Removed `processPdfDirectly()` function that used Document AI |
+|| `src/app/api/test/pdf/route.ts` | Updated to use pdf2json instead of Document AI |
+|| `src/app/api/test/pdf/debug/route.ts` | Updated to use pdf2json instead of Document AI |
+|| `DEVELOPMENT.md` | Removed `DOCUMENT_AI_PROCESSOR_ID` env var |
+|| `MEMORY_BANK.md` | Updated documentation |
+
+**Environment Variables Removed:**
+- `DOCUMENT_AI_PROCESSOR_ID`
+
+**Impact:**
+- Cost: $0 per PDF (100% savings)
+- PDFs that fail to parse with pdf2json will be skipped (logged as errors)
+
+---
 
 ### Production Deployment Session (2026-01-15)
 
